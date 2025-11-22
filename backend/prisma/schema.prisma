@@ -1,0 +1,570 @@
+// AdTech/MarTech Platform Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== USER & AUTH =====
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  name          String
+  role          UserRole @default(USER)
+  organizationId String?
+  organization  Organization? @relation(fields: [organizationId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  campaigns     Campaign[]
+  audiences     Audience[]
+  apiKeys       ApiKey[]
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  domain      String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  publishers  Publisher[]
+  advertisers Advertiser[]
+}
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  PUBLISHER
+  ADVERTISER
+}
+
+// ===== ADTECH: INVENTORY MANAGEMENT =====
+
+model Inventory {
+  id            String        @id @default(uuid())
+  type          InventoryType
+  name          String
+  description   String?
+  publisherId   String
+  publisher     Publisher     @relation(fields: [publisherId], references: [id])
+  status        InventoryStatus @default(ACTIVE)
+
+  // Inventory Metadata
+  metadata      Json?
+
+  // Email Inventory Specific
+  emailListSize Int?
+  emailSegments String[]
+
+  // Movie/Content Inventory Specific
+  contentType   String?
+  contentGenre  String[]
+  contentRating String?
+
+  // Pricing
+  floorPrice    Float         @default(0)
+  currency      String        @default("USD")
+
+  // Availability
+  totalSlots    Int
+  availableSlots Int
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  slots         InventorySlot[]
+  campaigns     CampaignInventory[]
+}
+
+model InventorySlot {
+  id          String   @id @default(uuid())
+  inventoryId String
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  slotTime    DateTime
+  status      SlotStatus @default(AVAILABLE)
+  reservedBy  String?
+  price       Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  impressions Impression[]
+}
+
+enum InventoryType {
+  EMAIL
+  MOVIE
+  VIDEO
+  DISPLAY
+  NATIVE
+  CUSTOM
+}
+
+enum InventoryStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum SlotStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+  DELIVERED
+}
+
+// ===== ADTECH: PUBLISHERS & ADVERTISERS =====
+
+model Publisher {
+  id              String   @id @default(uuid())
+  name            String
+  domain          String   @unique
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  revenueShare    Float    @default(0.7)
+  status          PublisherStatus @default(ACTIVE)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  inventories     Inventory[]
+  placements      AdPlacement[]
+}
+
+model Advertiser {
+  id              String   @id @default(uuid())
+  name            String
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  budget          Float    @default(0)
+  status          AdvertiserStatus @default(ACTIVE)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  campaigns       Campaign[]
+  creatives       Creative[]
+}
+
+enum PublisherStatus {
+  ACTIVE
+  PAUSED
+  SUSPENDED
+}
+
+enum AdvertiserStatus {
+  ACTIVE
+  PAUSED
+  SUSPENDED
+}
+
+// ===== ADTECH: CAMPAIGNS & CREATIVES =====
+
+model Campaign {
+  id            String   @id @default(uuid())
+  name          String
+  advertiserId  String
+  advertiser    Advertiser @relation(fields: [advertiserId], references: [id])
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+
+  // Campaign Settings
+  type          CampaignType
+  objective     CampaignObjective
+  budget        Float
+  bidStrategy   BidStrategy
+  maxBid        Float?
+
+  // Targeting
+  targeting     Json
+
+  // Schedule
+  startDate     DateTime
+  endDate       DateTime?
+  status        CampaignStatus @default(DRAFT)
+
+  // Performance
+  spent         Float    @default(0)
+  impressions   Int      @default(0)
+  clicks        Int      @default(0)
+  conversions   Int      @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  creatives     CampaignCreative[]
+  inventories   CampaignInventory[]
+  bids          Bid[]
+  audiences     CampaignAudience[]
+}
+
+model Creative {
+  id            String   @id @default(uuid())
+  name          String
+  advertiserId  String
+  advertiser    Advertiser @relation(fields: [advertiserId], references: [id])
+
+  // Creative Content
+  type          CreativeType
+  format        String
+  content       Json
+  clickUrl      String?
+
+  // Assets
+  imageUrl      String?
+  videoUrl      String?
+  htmlContent   String?
+
+  status        CreativeStatus @default(PENDING)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  campaigns     CampaignCreative[]
+}
+
+model CampaignCreative {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  creativeId  String
+  creative    Creative @relation(fields: [creativeId], references: [id])
+  weight      Int      @default(100)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@unique([campaignId, creativeId])
+}
+
+model CampaignInventory {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  inventoryId String
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([campaignId, inventoryId])
+}
+
+enum CampaignType {
+  DISPLAY
+  VIDEO
+  EMAIL
+  NATIVE
+  SPONSORED
+}
+
+enum CampaignObjective {
+  AWARENESS
+  CONSIDERATION
+  CONVERSION
+}
+
+enum BidStrategy {
+  CPM
+  CPC
+  CPA
+  FIXED
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum CreativeType {
+  IMAGE
+  VIDEO
+  HTML5
+  NATIVE
+  EMAIL
+}
+
+enum CreativeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+// ===== ADTECH: RTB & BIDDING =====
+
+model Bid {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+
+  // Bid Request
+  requestId   String
+  placementId String
+  placement   AdPlacement @relation(fields: [placementId], references: [id])
+
+  // Bid Details
+  bidPrice    Float
+  floorPrice  Float
+  won         Boolean  @default(false)
+
+  // Context
+  userContext Json
+  deviceType  String
+
+  timestamp   DateTime @default(now())
+
+  impression  Impression?
+}
+
+model AdPlacement {
+  id          String   @id @default(uuid())
+  publisherId String
+  publisher   Publisher @relation(fields: [publisherId], references: [id])
+  name        String
+  size        String
+  type        String
+  position    String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bids        Bid[]
+  impressions Impression[]
+}
+
+model Impression {
+  id              String   @id @default(uuid())
+  bidId           String   @unique
+  bid             Bid      @relation(fields: [bidId], references: [id])
+  slotId          String?
+  slot            InventorySlot? @relation(fields: [slotId], references: [id])
+  placementId     String
+  placement       AdPlacement @relation(fields: [placementId], references: [id])
+
+  // Impression Data
+  served          Boolean  @default(false)
+  viewed          Boolean  @default(false)
+  clicked         Boolean  @default(false)
+  converted       Boolean  @default(false)
+
+  // Timing
+  servedAt        DateTime?
+  viewedAt        DateTime?
+  clickedAt       DateTime?
+  convertedAt     DateTime?
+
+  // Revenue
+  revenue         Float?
+  publisherRevenue Float?
+
+  createdAt       DateTime @default(now())
+
+  events          ImpressionEvent[]
+}
+
+model ImpressionEvent {
+  id            String   @id @default(uuid())
+  impressionId  String
+  impression    Impression @relation(fields: [impressionId], references: [id])
+  eventType     String
+  eventData     Json?
+  timestamp     DateTime @default(now())
+}
+
+// ===== MARTECH: CUSTOMER DATA PLATFORM =====
+
+model Customer {
+  id            String   @id @default(uuid())
+
+  // Identity
+  email         String?  @unique
+  phone         String?
+  externalId    String?
+
+  // Profile
+  firstName     String?
+  lastName      String?
+  dateOfBirth   DateTime?
+  gender        String?
+
+  // Location
+  country       String?
+  city          String?
+  timezone      String?
+
+  // Attributes
+  attributes    Json?
+  tags          String[]
+
+  // Consent
+  emailConsent  Boolean  @default(false)
+  smsConsent    Boolean  @default(false)
+
+  // Timestamps
+  firstSeen     DateTime @default(now())
+  lastSeen      DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  events        CustomerEvent[]
+  segments      CustomerSegment[]
+  journeys      CustomerJourney[]
+}
+
+model CustomerEvent {
+  id          String   @id @default(uuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  eventType   String
+  eventName   String
+  properties  Json?
+
+  // Context
+  sessionId   String?
+  deviceType  String?
+  browser     String?
+  ipAddress   String?
+
+  timestamp   DateTime @default(now())
+
+  @@index([customerId, eventType])
+  @@index([eventName, timestamp])
+}
+
+// ===== MARTECH: SEGMENTATION =====
+
+model Audience {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  // Segment Definition
+  rules       Json
+
+  // Stats
+  size        Int      @default(0)
+
+  status      AudienceStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  segments    CustomerSegment[]
+  campaigns   CampaignAudience[]
+}
+
+model CustomerSegment {
+  id          String   @id @default(uuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  audienceId  String
+  audience    Audience @relation(fields: [audienceId], references: [id])
+  addedAt     DateTime @default(now())
+
+  @@unique([customerId, audienceId])
+}
+
+model CampaignAudience {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  audienceId  String
+  audience    Audience @relation(fields: [audienceId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([campaignId, audienceId])
+}
+
+enum AudienceStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+// ===== MARTECH: JOURNEY & AUTOMATION =====
+
+model Journey {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+
+  // Journey Definition
+  triggers    Json
+  steps       Json
+
+  status      JourneyStatus @default(DRAFT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  executions  CustomerJourney[]
+}
+
+model CustomerJourney {
+  id          String   @id @default(uuid())
+  journeyId   String
+  journey     Journey  @relation(fields: [journeyId], references: [id])
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  currentStep Int      @default(0)
+  status      CustomerJourneyStatus @default(ACTIVE)
+  data        Json?
+
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime @updatedAt
+}
+
+enum JourneyStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum CustomerJourneyStatus {
+  ACTIVE
+  COMPLETED
+  EXITED
+  PAUSED
+}
+
+// ===== ANALYTICS & REPORTING =====
+
+model Report {
+  id          String   @id @default(uuid())
+  name        String
+  type        ReportType
+  config      Json
+  schedule    String?
+  recipients  String[]
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum ReportType {
+  CAMPAIGN_PERFORMANCE
+  INVENTORY_UTILIZATION
+  REVENUE
+  AUDIENCE_INSIGHTS
+  CUSTOM
+}
