@@ -1,0 +1,330 @@
+---
+# Tekton Pipeline for AdTech Platform
+# Cloud-native CI/CD using Tekton Pipelines
+
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: adtech-platform-pipeline
+  namespace: tekton-pipelines
+spec:
+  params:
+    - name: git-url
+      type: string
+      description: Git repository URL
+      default: https://github.com/adtech/platform.git
+
+    - name: git-revision
+      type: string
+      description: Git revision to build
+      default: main
+
+    - name: image-registry
+      type: string
+      description: Container registry
+      default: registry.adtech.com
+
+    - name: deployment-namespace
+      type: string
+      description: Kubernetes namespace for deployment
+      default: production
+
+  workspaces:
+    - name: shared-workspace
+    - name: docker-credentials
+    - name: kubeconfig
+
+  tasks:
+    # ===== TASK 1: Clone Repository =====
+    - name: git-clone
+      taskRef:
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+
+    # ===== TASK 2: Install Dependencies =====
+    - name: install-dependencies
+      runAfter: [git-clone]
+      taskRef:
+        name: npm
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      params:
+        - name: ARGS
+          value: ["ci"]
+
+    # ===== TASK 3: Lint & Type Check =====
+    - name: lint-and-typecheck
+      runAfter: [install-dependencies]
+      taskRef:
+        name: npm
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      params:
+        - name: ARGS
+          value: ["run", "lint:all"]
+
+    # ===== TASK 4: Run Unit Tests =====
+    - name: unit-tests
+      runAfter: [lint-and-typecheck]
+      taskRef:
+        name: npm
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      params:
+        - name: ARGS
+          value: ["run", "test:unit", "--", "--coverage", "--ci"]
+
+    # ===== TASK 5: Security Scan - Snyk =====
+    - name: security-scan-snyk
+      runAfter: [unit-tests]
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: snyk-test
+            image: snyk/snyk:node
+            workingDir: $(workspaces.source.path)
+            env:
+              - name: SNYK_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: snyk-credentials
+                    key: token
+            script: |
+              #!/bin/sh
+              snyk auth ${SNYK_TOKEN}
+              snyk test --severity-threshold=high || true
+              snyk monitor
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # ===== TASK 6: SonarQube Analysis =====
+    - name: sonarqube-scan
+      runAfter: [unit-tests]
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: sonar-scan
+            image: sonarsource/sonar-scanner-cli:latest
+            workingDir: $(workspaces.source.path)
+            env:
+              - name: SONAR_HOST_URL
+                value: "https://sonarqube.adtech.com"
+              - name: SONAR_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: sonarqube-credentials
+                    key: token
+            script: |
+              #!/bin/bash
+              sonar-scanner \
+                -Dsonar.projectKey=adtech-platform \
+                -Dsonar.sources=backend/src,frontend/src \
+                -Dsonar.tests=backend/tests,frontend/tests \
+                -Dsonar.javascript.lcov.reportPaths=backend/coverage/lcov.info \
+                -Dsonar.host.url=${SONAR_HOST_URL} \
+                -Dsonar.login=${SONAR_TOKEN}
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # ===== TASK 7: Build Backend Docker Image =====
+    - name: build-backend-image
+      runAfter: [security-scan-snyk, sonarqube-scan]
+      taskRef:
+        name: buildah
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: dockerconfig
+          workspace: docker-credentials
+      params:
+        - name: IMAGE
+          value: "$(params.image-registry)/adtech-backend:$(tasks.git-clone.results.commit)"
+        - name: DOCKERFILE
+          value: ./Dockerfile
+        - name: CONTEXT
+          value: .
+
+    # ===== TASK 8: Build Frontend Docker Image =====
+    - name: build-frontend-image
+      runAfter: [security-scan-snyk, sonarqube-scan]
+      taskRef:
+        name: buildah
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: dockerconfig
+          workspace: docker-credentials
+      params:
+        - name: IMAGE
+          value: "$(params.image-registry)/adtech-frontend:$(tasks.git-clone.results.commit)"
+        - name: DOCKERFILE
+          value: ./frontend/Dockerfile
+        - name: CONTEXT
+          value: ./frontend
+
+    # ===== TASK 9: Container Security Scan - Trivy =====
+    - name: container-scan-backend
+      runAfter: [build-backend-image]
+      taskSpec:
+        params:
+          - name: image
+        steps:
+          - name: trivy-scan
+            image: aquasec/trivy:latest
+            script: |
+              #!/bin/sh
+              trivy image --severity HIGH,CRITICAL $(params.image)
+      params:
+        - name: image
+          value: "$(params.image-registry)/adtech-backend:$(tasks.git-clone.results.commit)"
+
+    - name: container-scan-frontend
+      runAfter: [build-frontend-image]
+      taskSpec:
+        params:
+          - name: image
+        steps:
+          - name: trivy-scan
+            image: aquasec/trivy:latest
+            script: |
+              #!/bin/sh
+              trivy image --severity HIGH,CRITICAL $(params.image)
+      params:
+        - name: image
+          value: "$(params.image-registry)/adtech-frontend:$(tasks.git-clone.results.commit)"
+
+    # ===== TASK 10: Deploy to Kubernetes =====
+    - name: deploy-to-k8s
+      runAfter: [container-scan-backend, container-scan-frontend]
+      taskRef:
+        name: kubernetes-actions
+      workspaces:
+        - name: kubeconfig-dir
+          workspace: kubeconfig
+      params:
+        - name: script
+          value: |
+            # Update deployments
+            kubectl set image deployment/adtech-backend \
+              adtech-backend=$(params.image-registry)/adtech-backend:$(tasks.git-clone.results.commit) \
+              -n $(params.deployment-namespace)
+
+            kubectl set image deployment/adtech-frontend \
+              adtech-frontend=$(params.image-registry)/adtech-frontend:$(tasks.git-clone.results.commit) \
+              -n $(params.deployment-namespace)
+
+            # Wait for rollout
+            kubectl rollout status deployment/adtech-backend -n $(params.deployment-namespace) --timeout=10m
+            kubectl rollout status deployment/adtech-frontend -n $(params.deployment-namespace) --timeout=10m
+
+    # ===== TASK 11: Run Integration Tests =====
+    - name: integration-tests
+      runAfter: [deploy-to-k8s]
+      taskRef:
+        name: npm
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      params:
+        - name: ARGS
+          value: ["run", "test:e2e"]
+
+    # ===== TASK 12: Performance Tests =====
+    - name: performance-tests
+      runAfter: [integration-tests]
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: artillery-test
+            image: artilleryio/artillery:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/sh
+              artillery run tests/performance/load-test.yml
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # ===== TASK 13: Smoke Tests =====
+    - name: smoke-tests
+      runAfter: [deploy-to-k8s]
+      taskRef:
+        name: npm
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      params:
+        - name: ARGS
+          value: ["run", "test:smoke"]
+
+  finally:
+    # ===== NOTIFICATION =====
+    - name: send-notification
+      taskSpec:
+        params:
+          - name: status
+        steps:
+          - name: notify
+            image: curlimages/curl:latest
+            script: |
+              #!/bin/sh
+              curl -X POST https://slack.com/api/chat.postMessage \
+                -H "Authorization: Bearer ${SLACK_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "channel": "#deployments",
+                  "text": "Pipeline $(params.status): AdTech Platform"
+                }'
+      params:
+        - name: status
+          value: "$(tasks.status)"
+
+---
+# PipelineRun - Trigger the pipeline
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: adtech-platform-run-
+  namespace: tekton-pipelines
+spec:
+  pipelineRef:
+    name: adtech-platform-pipeline
+  params:
+    - name: git-url
+      value: https://github.com/adtech/platform.git
+    - name: git-revision
+      value: main
+    - name: image-registry
+      value: registry.adtech.com
+    - name: deployment-namespace
+      value: production
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+    - name: docker-credentials
+      secret:
+        secretName: docker-registry-credentials
+    - name: kubeconfig
+      secret:
+        secretName: kubeconfig-secret
