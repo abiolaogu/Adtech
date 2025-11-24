@@ -1,0 +1,266 @@
+// Complete Database Schema for Enterprise AdTech Platform
+// This includes all models for production deployment
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User & Authentication
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  passwordHash   String
+  name           String
+  role           UserRole @default(USER)
+  organizationId String?
+
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  campaigns      Campaign[]
+  audiences      Audience[]
+  apiKeys        ApiKey[]
+  reports        Report[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([email])
+  @@index([organizationId])
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  ACCOUNT_MANAGER
+  TRAFFICKER
+  ANALYST
+  USER
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  domain      String   @unique
+  type        OrgType
+
+  users       User[]
+  publishers  Publisher[]
+  advertisers Advertiser[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum OrgType {
+  ADVERTISER
+  PUBLISHER
+  AGENCY
+  NETWORK
+}
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+}
+
+// Publishers & Inventory
+model Publisher {
+  id             String @id @default(uuid())
+  name           String
+  organizationId String
+  revenueShare   Float @default(70)
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  sites          Site[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Site {
+  id          String @id @default(uuid())
+  publisherId String
+  domain      String @unique
+  name        String
+
+  publisher   Publisher @relation(fields: [publisherId], references: [id])
+  adUnits     AdUnit[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([publisherId])
+}
+
+model AdUnit {
+  id         String @id @default(uuid())
+  siteId     String
+  name       String
+  sizes      String[]
+  floorPrice Float @default(0)
+
+  site       Site @relation(fields: [siteId], references: [id])
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([siteId])
+}
+
+// Advertisers & Campaigns
+model Advertiser {
+  id             String @id @default(uuid())
+  name           String
+  organizationId String
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  campaigns      Campaign[]
+  creatives      Creative[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Campaign {
+  id           String @id @default(uuid())
+  userId       String
+  advertiserId String?
+  name         String
+  objective    String
+  totalBudget  Float
+  dailyBudget  Float?
+  spent        Float @default(0)
+  startDate    DateTime
+  endDate      DateTime?
+  status       CampaignStatus @default(DRAFT)
+
+  user         User @relation(fields: [userId], references: [id])
+  advertiser   Advertiser? @relation(fields: [advertiserId], references: [id])
+  lineItems    LineItem[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([advertiserId])
+  @@index([status])
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+model LineItem {
+  id         String @id @default(uuid())
+  campaignId String
+  name       String
+  budget     Float
+  spent      Float @default(0)
+  cpm        Float
+
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  creatives  CreativeLineItem[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([campaignId])
+}
+
+model Creative {
+  id           String @id @default(uuid())
+  advertiserId String
+  name         String
+  format       String
+  content      String
+  clickUrl     String
+
+  advertiser   Advertiser @relation(fields: [advertiserId], references: [id])
+  lineItems    CreativeLineItem[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([advertiserId])
+}
+
+model CreativeLineItem {
+  id         String @id @default(uuid())
+  creativeId String
+  lineItemId String
+
+  creative   Creative @relation(fields: [creativeId], references: [id])
+  lineItem   LineItem @relation(fields: [lineItemId], references: [id])
+
+  createdAt  DateTime @default(now())
+
+  @@unique([creativeId, lineItemId])
+}
+
+// Audiences
+model Audience {
+  id          String @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  rules       Json
+  userCount   Int @default(0)
+
+  user        User @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Analytics
+model ImpressionLog {
+  id          String @id @default(uuid())
+  requestId   String @unique
+  campaignId  String?
+  publisherId String?
+  price       Float
+  timestamp   DateTime @default(now())
+
+  // Context
+  country     String
+  deviceType  String
+  viewable    Boolean @default(false)
+  clicked     Boolean @default(false)
+
+  @@index([timestamp])
+  @@index([campaignId])
+  @@index([publisherId])
+}
+
+model Report {
+  id         String @id @default(uuid())
+  userId     String
+  name       String
+  config     Json
+
+  user       User @relation(fields: [userId], references: [id])
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
