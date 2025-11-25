@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { AdServer } from '../services/adtech/adserver/AdServer';
 import { prisma } from '../config/database';
-import { logger } from '../utils/logger';
 
 const router = Router();
 const adServer = AdServer.getInstance();
@@ -16,7 +15,7 @@ router.get('/serve/ad', async (req, res, next) => {
 
     if (!placementId || !publisherId || !deviceType) {
       return res.status(400).json({
-        error: 'Missing required parameters: placementId, publisherId, deviceType'
+        error: 'Missing required parameters: placementId, publisherId, deviceType',
       });
     }
 
@@ -25,7 +24,7 @@ router.get('/serve/ad', async (req, res, next) => {
       publisherId: publisherId as string,
       deviceType: deviceType as string,
       country: country as string,
-      userContext: userId ? { userId } : undefined
+      userContext: userId ? { userId } : undefined,
     });
 
     res.json(result);
@@ -50,7 +49,7 @@ router.get('/track/impression/:requestId', async (req, res, next) => {
 
     res.writeHead(200, {
       'Content-Type': 'image/png',
-      'Content-Length': pixel.length
+      'Content-Length': pixel.length,
     });
     res.end(pixel);
   } catch (error) {
@@ -101,9 +100,9 @@ router.get('/campaigns', async (req, res, next) => {
       include: {
         advertiser: true,
         creatives: {
-          include: { creative: true }
-        }
-      }
+          include: { creative: true },
+        },
+      },
     });
     res.json(campaigns);
   } catch (error) {
@@ -119,12 +118,12 @@ router.get('/campaigns/:id', async (req, res, next) => {
       include: {
         advertiser: true,
         creatives: {
-          include: { creative: true }
+          include: { creative: true },
         },
         audiences: {
-          include: { audience: true }
-        }
-      }
+          include: { audience: true },
+        },
+      },
     });
 
     if (!campaign) {
@@ -143,8 +142,8 @@ router.post('/campaigns', async (req, res, next) => {
     const campaign = await prisma.campaign.create({
       data: {
         ...req.body,
-        status: 'DRAFT'
-      }
+        status: 'DRAFT',
+      },
     });
     res.status(201).json(campaign);
   } catch (error) {
@@ -157,7 +156,7 @@ router.put('/campaigns/:id', async (req, res, next) => {
   try {
     const campaign = await prisma.campaign.update({
       where: { id: req.params.id },
-      data: req.body
+      data: req.body,
     });
     res.json(campaign);
   } catch (error) {
@@ -169,7 +168,7 @@ router.put('/campaigns/:id', async (req, res, next) => {
 router.delete('/campaigns/:id', async (req, res, next) => {
   try {
     await prisma.campaign.delete({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     });
     res.status(204).send();
   } catch (error) {
@@ -185,7 +184,7 @@ router.delete('/campaigns/:id', async (req, res, next) => {
 router.get('/creatives', async (req, res, next) => {
   try {
     const creatives = await prisma.creative.findMany({
-      include: { advertiser: true }
+      include: { advertiser: true },
     });
     res.json(creatives);
   } catch (error) {
@@ -199,8 +198,8 @@ router.post('/creatives', async (req, res, next) => {
     const creative = await prisma.creative.create({
       data: {
         ...req.body,
-        status: 'PENDING'
-      }
+        status: 'PENDING',
+      },
     });
     res.status(201).json(creative);
   } catch (error) {
@@ -213,7 +212,7 @@ router.put('/creatives/:id', async (req, res, next) => {
   try {
     const creative = await prisma.creative.update({
       where: { id: req.params.id },
-      data: req.body
+      data: req.body,
     });
     res.json(creative);
   } catch (error) {
@@ -231,8 +230,8 @@ router.get('/publishers', async (req, res, next) => {
     const publishers = await prisma.publisher.findMany({
       include: {
         placements: true,
-        inventories: true
-      }
+        inventories: true,
+      },
     });
     res.json(publishers);
   } catch (error) {
@@ -244,7 +243,7 @@ router.get('/publishers', async (req, res, next) => {
 router.post('/publishers', async (req, res, next) => {
   try {
     const publisher = await prisma.publisher.create({
-      data: req.body
+      data: req.body,
     });
     res.status(201).json(publisher);
   } catch (error) {
@@ -256,7 +255,7 @@ router.post('/publishers', async (req, res, next) => {
 router.post('/placements', async (req, res, next) => {
   try {
     const placement = await prisma.adPlacement.create({
-      data: req.body
+      data: req.body,
     });
     res.status(201).json(placement);
   } catch (error) {

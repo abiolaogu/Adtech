@@ -14,8 +14,8 @@ router.get('/campaigns/:id/performance', async (req, res, next) => {
     const campaign = await prisma.campaign.findUnique({
       where: { id: req.params.id },
       include: {
-        advertiser: true
-      }
+        advertiser: true,
+      },
     });
 
     if (!campaign) {
@@ -26,15 +26,17 @@ router.get('/campaigns/:id/performance', async (req, res, next) => {
     const impressions = await prisma.impression.findMany({
       where: {
         bid: {
-          campaignId: req.params.id
+          campaignId: req.params.id,
         },
-        ...(startDate && endDate ? {
-          createdAt: {
-            gte: new Date(startDate as string),
-            lte: new Date(endDate as string)
-          }
-        } : {})
-      }
+        ...(startDate && endDate
+          ? {
+              createdAt: {
+                gte: new Date(startDate as string),
+                lte: new Date(endDate as string),
+              },
+            }
+          : {}),
+      },
     });
 
     const metrics = {
@@ -43,19 +45,26 @@ router.get('/campaigns/:id/performance', async (req, res, next) => {
       clicks: impressions.filter(i => i.clicked).length,
       conversions: impressions.filter(i => i.converted).length,
       spend: impressions.reduce((sum, i) => sum + (i.revenue || 0), 0),
-      ctr: impressions.length > 0 ? (impressions.filter(i => i.clicked).length / impressions.length) * 100 : 0,
-      cvr: impressions.filter(i => i.clicked).length > 0
-        ? (impressions.filter(i => i.converted).length / impressions.filter(i => i.clicked).length) * 100
-        : 0,
-      avgCpm: impressions.length > 0
-        ? (impressions.reduce((sum, i) => sum + (i.revenue || 0), 0) / impressions.length) * 1000
-        : 0
+      ctr:
+        impressions.length > 0
+          ? (impressions.filter(i => i.clicked).length / impressions.length) * 100
+          : 0,
+      cvr:
+        impressions.filter(i => i.clicked).length > 0
+          ? (impressions.filter(i => i.converted).length /
+              impressions.filter(i => i.clicked).length) *
+            100
+          : 0,
+      avgCpm:
+        impressions.length > 0
+          ? (impressions.reduce((sum, i) => sum + (i.revenue || 0), 0) / impressions.length) * 1000
+          : 0,
     };
 
     res.json({
       campaign,
       period: { startDate, endDate },
-      metrics
+      metrics,
     });
   } catch (error) {
     next(error);
@@ -71,7 +80,7 @@ router.get('/publishers/:id/revenue', async (req, res, next) => {
     const { startDate, endDate } = req.query;
 
     const publisher = await prisma.publisher.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     });
 
     if (!publisher) {
@@ -81,29 +90,34 @@ router.get('/publishers/:id/revenue', async (req, res, next) => {
     const impressions = await prisma.impression.findMany({
       where: {
         placement: {
-          publisherId: req.params.id
+          publisherId: req.params.id,
         },
-        ...(startDate && endDate ? {
-          createdAt: {
-            gte: new Date(startDate as string),
-            lte: new Date(endDate as string)
-          }
-        } : {})
-      }
+        ...(startDate && endDate
+          ? {
+              createdAt: {
+                gte: new Date(startDate as string),
+                lte: new Date(endDate as string),
+              },
+            }
+          : {}),
+      },
     });
 
     const metrics = {
       totalImpressions: impressions.length,
       totalRevenue: impressions.reduce((sum, i) => sum + (i.publisherRevenue || 0), 0),
-      avgCpm: impressions.length > 0
-        ? (impressions.reduce((sum, i) => sum + (i.publisherRevenue || 0), 0) / impressions.length) * 1000
-        : 0
+      avgCpm:
+        impressions.length > 0
+          ? (impressions.reduce((sum, i) => sum + (i.publisherRevenue || 0), 0) /
+              impressions.length) *
+            1000
+          : 0,
     };
 
     res.json({
       publisher,
       period: { startDate, endDate },
-      metrics
+      metrics,
     });
   } catch (error) {
     next(error);
@@ -122,7 +136,7 @@ router.get('/overview', async (req, res, next) => {
       totalPublishers,
       totalInventory,
       totalCustomers,
-      recentImpressions
+      recentImpressions,
     ] = await Promise.all([
       prisma.campaign.count(),
       prisma.campaign.count({ where: { status: 'ACTIVE' } }),
@@ -132,21 +146,21 @@ router.get('/overview', async (req, res, next) => {
       prisma.impression.count({
         where: {
           createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
-          }
-        }
-      })
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+          },
+        },
+      }),
     ]);
 
     res.json({
       campaigns: {
         total: totalCampaigns,
-        active: activeCampaigns
+        active: activeCampaigns,
       },
       publishers: totalPublishers,
       inventory: totalInventory,
       customers: totalCustomers,
-      impressionsLast24h: recentImpressions
+      impressionsLast24h: recentImpressions,
     });
   } catch (error) {
     next(error);

@@ -13,14 +13,14 @@ export async function initializeRedis(): Promise<void> {
     retryStrategy(times: number) {
       const delay = Math.min(times * 50, 2000);
       return delay;
-    }
+    },
   };
 
   redisClient = new Redis(redisConfig);
   redisPubClient = new Redis(redisConfig);
   redisSubClient = new Redis(redisConfig);
 
-  redisClient.on('error', (err) => {
+  redisClient.on('error', err => {
     logger.error('Redis Client Error:', err);
   });
 

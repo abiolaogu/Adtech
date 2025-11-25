@@ -20,7 +20,7 @@ router.post('/register', async (req, res, next) => {
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
     });
 
     if (existingUser) {
@@ -36,8 +36,8 @@ router.post('/register', async (req, res, next) => {
       const organization = await prisma.organization.create({
         data: {
           name: organizationName,
-          domain: email.split('@')[1]
-        }
+          domain: email.split('@')[1],
+        },
       });
       organizationId = organization.id;
     }
@@ -49,15 +49,15 @@ router.post('/register', async (req, res, next) => {
         password: hashedPassword,
         name,
         organizationId,
-        role: 'USER'
+        role: 'USER',
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        organization: true
-      }
+        organization: true,
+      },
     });
 
     // Generate token
@@ -69,7 +69,7 @@ router.post('/register', async (req, res, next) => {
 
     res.status(201).json({
       user,
-      token
+      token,
     });
   } catch (error) {
     next(error);
@@ -92,8 +92,8 @@ router.post('/login', async (req, res, next) => {
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
-        organization: true
-      }
+        organization: true,
+      },
     });
 
     if (!user) {
@@ -114,11 +114,12 @@ router.post('/login', async (req, res, next) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
-    const { password: _, ...userWithoutPassword } = user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...userWithoutPassword } = user;
 
     res.json({
       user: userWithoutPassword,
-      token
+      token,
     });
   } catch (error) {
     next(error);
@@ -137,23 +138,22 @@ router.get('/me', async (req, res, next) => {
       throw new AppError('No token provided', 401);
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'your-secret-key'
-    ) as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as {
+      userId: string;
+    };
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
-        organization: true
+        organization: true,
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        organization: true
-      }
+        organization: true,
+      },
     });
 
     if (!user) {
