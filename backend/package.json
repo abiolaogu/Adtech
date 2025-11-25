@@ -49,6 +49,7 @@
     "prom-client": "^15.1.0",
     "redis": "^4.6.12",
     "socket.io": "^4.6.1",
+    "turbospike": "git+https://github.com/abiolaogu/Turbospike.git",
     "uuid": "^9.0.1",
     "winston": "^3.11.0",
     "zod": "^3.22.4"

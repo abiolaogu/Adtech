@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { initializeRedis } from './config/redis';
+import { turbospike } from './config/turbospike';
 import { logger } from './utils/logger';
 import routes from './routes';
 import { errorHandler } from './middleware/errorHandler';
@@ -59,20 +60,26 @@ app.use(errorHandler);
 // Initialize services
 async function initializeServices() {
   try {
-    // Initialize Redis
+    // Initialize Turbospike (High-performance NoSQL database)
+    await turbospike.connect();
+    logger.info('✅ Turbospike connected successfully');
+
+    // Initialize Redis (Caching layer)
     await initializeRedis();
-    logger.info('Redis connected successfully');
+    logger.info('✅ Redis connected successfully');
 
     // Initialize RTB Engine
     const rtbEngine = RTBEngine.getInstance();
     await rtbEngine.initialize(io);
-    logger.info('RTB Engine initialized successfully');
+    logger.info('✅ RTB Engine initialized successfully');
 
     // Start server
     httpServer.listen(PORT, () => {
       logger.info(`🚀 AdTech/MarTech Platform running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV}`);
       logger.info(`API: http://localhost:${PORT}/api/v1`);
+      logger.info(`Database: Turbospike (${turbospike.getConfig().hosts.join(', ')})`);
+      logger.info(`Cache: Redis`);
     });
   } catch (error) {
     logger.error('Failed to initialize services:', error);
@@ -81,16 +88,18 @@ async function initializeServices() {
 }
 
 // Handle graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
+  await turbospike.disconnect();
   httpServer.close(() => {
     logger.info('Server closed');
     process.exit(0);
   });
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
+  await turbospike.disconnect();
   httpServer.close(() => {
     logger.info('Server closed');
     process.exit(0);

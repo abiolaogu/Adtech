@@ -1,0 +1,170 @@
+version: '3.8'
+
+services:
+  # Turbospike (Aerospike Fork) - High-Performance NoSQL Database
+  # Cluster configuration for production-grade performance
+
+  turbospike-1:
+    image: aerospike/aerospike-server:latest
+    container_name: turbospike-node-1
+    networks:
+      - adtech-network
+    ports:
+      - "3000:3000"  # Service port
+      - "3001:3001"  # Fabric port
+      - "3002:3002"  # Mesh port
+      - "3003:3003"  # Info port
+    volumes:
+      - turbospike-data-1:/opt/aerospike/data
+      - ./config/turbospike/aerospike.conf:/etc/aerospike/aerospike.conf
+    environment:
+      - NAMESPACE=adtech
+      - MEM_GB=8
+      - STORAGE_GB=100
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/opt/aerospike/bin/asadm", "-e", "info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  turbospike-2:
+    image: aerospike/aerospike-server:latest
+    container_name: turbospike-node-2
+    networks:
+      - adtech-network
+    ports:
+      - "3010:3000"
+      - "3011:3001"
+      - "3012:3002"
+      - "3013:3003"
+    volumes:
+      - turbospike-data-2:/opt/aerospike/data
+      - ./config/turbospike/aerospike.conf:/etc/aerospike/aerospike.conf
+    environment:
+      - NAMESPACE=adtech
+      - MEM_GB=8
+      - STORAGE_GB=100
+      - MESH_SEED_ADDRESS=turbospike-1
+    restart: unless-stopped
+    depends_on:
+      - turbospike-1
+
+  turbospike-3:
+    image: aerospike/aerospike-server:latest
+    container_name: turbospike-node-3
+    networks:
+      - adtech-network
+    ports:
+      - "3020:3000"
+      - "3021:3001"
+      - "3022:3002"
+      - "3023:3003"
+    volumes:
+      - turbospike-data-3:/opt/aerospike/data
+      - ./config/turbospike/aerospike.conf:/etc/aerospike/aerospike.conf
+    environment:
+      - NAMESPACE=adtech
+      - MEM_GB=8
+      - STORAGE_GB=100
+      - MESH_SEED_ADDRESS=turbospike-1
+    restart: unless-stopped
+    depends_on:
+      - turbospike-1
+
+  # PostgreSQL - Relational data
+  postgres:
+    image: postgres:15-alpine
+    container_name: adtech-postgres
+    networks:
+      - adtech-network
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=adtech_production
+      - POSTGRES_USER=adtech
+      - POSTGRES_PASSWORD=secure_password_change_me
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adtech"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Caching layer
+  redis:
+    image: redis:7-alpine
+    container_name: adtech-redis
+    networks:
+      - adtech-network
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # AdTech Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: adtech-backend
+    networks:
+      - adtech-network
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TURBOSPIKE_HOSTS=turbospike-1:3000,turbospike-2:3000,turbospike-3:3000
+      - TURBOSPIKE_NAMESPACE=adtech
+      - DATABASE_URL=postgresql://adtech:secure_password_change_me@postgres:5432/adtech_production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - turbospike-1
+      - turbospike-2
+      - turbospike-3
+      - postgres
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Aerospike Management Console (Optional)
+  amc:
+    image: aerospike/amc:latest
+    container_name: turbospike-amc
+    networks:
+      - adtech-network
+    ports:
+      - "8081:8081"
+    environment:
+      - AMC_AUTH_MODE=none
+    depends_on:
+      - turbospike-1
+    restart: unless-stopped
+
+networks:
+  adtech-network:
+    driver: bridge
+
+volumes:
+  turbospike-data-1:
+  turbospike-data-2:
+  turbospike-data-3:
+  postgres-data:
+  redis-data:
