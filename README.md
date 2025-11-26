@@ -1,6 +1,24 @@
 # AdTech/MarTech Platform
 
-A comprehensive full-stack advertising technology and marketing technology platform for monetizing inventories and managing customer data.
+A comprehensive full-stack advertising technology and marketing technology platform for monetizing inventories and managing customer data. Production-ready with web frontend, mobile applications, and complete documentation.
+
+## 📱 Platform Components
+
+- **🖥️ Web Application** - React-based responsive web interface (see [frontend-app/](./frontend-app/))
+- **📱 Mobile Apps** - Flutter iOS/Android apps (see [mobile-app/](./mobile-app/))
+- **🎯 Interactive Demo** - [PLATFORM_DEMO.html](./PLATFORM_DEMO.html) - Live platform preview
+- **📚 Complete Documentation** - User manuals, training materials, and guides
+
+## 🚀 Quick Links
+
+- **[📖 Documentation Index](./docs/DOCUMENTATION_INDEX.md)** - Master guide to all documentation
+- **[📁 Project Structure](./PROJECT_STRUCTURE.md)** - Complete repository organization guide
+- **[📚 User Manuals](./docs/manuals/user/)** - Complete guides for all user roles
+- **[🎓 Training Materials](./docs/manuals/video-scripts/)** - Video training scripts
+- **[📱 Mobile Build Instructions](./mobile-app/BUILD_INSTRUCTIONS.md)** - iOS/Android build guide
+- **[🎯 Interactive Demo](./PLATFORM_DEMO.html)** - Try the platform
+- **[🏗️ Architecture](./ARCHITECTURE.md)** - System design and architecture
+- **[🚢 Deployment](./DEPLOYMENT.md)** - Production deployment guide
 
 ## Features
 
@@ -46,6 +64,42 @@ A comprehensive full-stack advertising technology and marketing technology platf
 - **Styling:** Tailwind CSS
 - **Charts:** Recharts
 - **Icons:** Lucide React
+
+### Mobile
+- **Framework:** Flutter 3.16+
+- **Language:** Dart
+- **State Management:** Provider + Riverpod
+- **Charts:** fl_chart
+- **HTTP:** Dio
+- **Storage:** Hive + Flutter Secure Storage
+- **Auth:** Local Auth (biometric)
+- **Push Notifications:** Firebase Cloud Messaging
+
+## 👥 User Roles & Documentation
+
+The platform supports multiple user roles with comprehensive documentation:
+
+### User Categories
+
+1. **👨‍💼 Advertiser** - Create and manage ad campaigns
+   - [User Manual](./docs/manuals/user/ADVERTISER_USER_MANUAL.md)
+   - [Training Script](./docs/manuals/video-scripts/ADVERTISER_TRAINING_SCRIPT.md)
+
+2. **📰 Publisher** - Monetize inventory and manage ad units
+   - [User Manual](./docs/manuals/user/PUBLISHER_USER_MANUAL.md)
+
+3. **🔧 Admin** - Platform administration and oversight
+   - [Quick Reference](./docs/manuals/user/ADMIN_QUICK_REFERENCE.md)
+
+4. **🏢 Agency** - Manage multiple advertiser accounts
+
+5. **📊 Analyst** - Advanced analytics and reporting
+
+6. **💰 Finance Manager** - Financial oversight and billing
+
+7. **🛡️ Content Moderator** - Review and approve ad creatives
+
+See [USER_CATEGORIES.md](./docs/USER_CATEGORIES.md) for detailed role descriptions and permissions.
 
 ## Architecture
 
@@ -337,6 +391,77 @@ await inventoryManager.createInventory({
   floorPrice: 8.0 // $8 CPM
 });
 ```
+
+## 🖥️ Frontend Application
+
+The web frontend is located in `frontend-app/`:
+
+```bash
+cd frontend-app
+npm install
+npm run dev
+```
+
+Features:
+- ✅ Multi-role dashboards (Advertiser, Publisher, Admin)
+- ✅ Campaign creation and management
+- ✅ Real-time analytics with interactive charts
+- ✅ Responsive design (mobile, tablet, desktop)
+- ✅ Protected routes with authentication
+- ✅ Dark mode support
+
+See [frontend-app/README.md](./frontend-app/README.md) for detailed setup.
+
+## 📱 Mobile Application
+
+The mobile app is located in `mobile-app/`:
+
+```bash
+cd mobile-app
+flutter pub get
+flutter run
+```
+
+### Building for Production
+
+**Android APK:**
+```bash
+flutter build apk --release --flavor production
+# Output: build/app/outputs/flutter-apk/app-production-release.apk
+```
+
+**iOS IPA:**
+```bash
+flutter build ipa --release --flavor production
+# Output: build/ios/ipa/adtech_platform.ipa
+```
+
+**Android App Bundle (Play Store):**
+```bash
+flutter build appbundle --release --flavor production
+# Output: build/app/outputs/bundle/productionRelease/app-production-release.aab
+```
+
+See [mobile-app/BUILD_INSTRUCTIONS.md](./mobile-app/BUILD_INSTRUCTIONS.md) for complete build instructions.
+
+### Mobile Features
+
+- ✅ Native iOS and Android support
+- ✅ Biometric authentication (Face ID, Touch ID, Fingerprint)
+- ✅ Push notifications via Firebase
+- ✅ Offline data caching
+- ✅ Multi-environment support (dev, staging, production)
+- ✅ Role-based UI for all user types
+
+## 🎯 Interactive Demo
+
+Open [PLATFORM_DEMO.html](./PLATFORM_DEMO.html) in your browser to explore:
+
+- Platform feature overview
+- Interactive dashboards for each role
+- Mobile app preview
+- Live charts and metrics
+- Complete navigation and workflows
 
 ## Deployment
 

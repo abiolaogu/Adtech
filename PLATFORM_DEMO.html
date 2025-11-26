@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdTech Platform - Interactive Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .mobile-frame {
+            width: 375px; height: 667px; border: 8px solid #1f2937; border-radius: 36px;
+            background: white; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+        .tab-active { border-bottom: 3px solid #3b82f6; color: #3b82f6; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-xl">AT</span>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">AdTech Platform</h1>
+                        <p class="text-sm text-gray-600">Interactive Platform Demo</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="showSection('overview')" class="px-4 py-2 text-gray-700 hover:text-blue-600 transition">Overview</button>
+                    <button onclick="showSection('features')" class="px-4 py-2 text-gray-700 hover:text-blue-600 transition">Features</button>
+                    <button onclick="showSection('demo')" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Try Demo</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="overview" class="py-20 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500">
+        <div class="max-w-7xl mx-auto px-4 text-center text-white">
+            <h2 class="text-5xl font-bold mb-6 fade-in">Enterprise AdTech Platform</h2>
+            <p class="text-xl mb-8 opacity-90 max-w-3xl mx-auto">
+                Powering 10M+ ad requests per second with ultra-low latency. Complete advertising ecosystem for advertisers, publishers, and admins.
+            </p>
+            <div class="flex justify-center space-x-4 mb-12">
+                <button onclick="showSection('demo')" class="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:shadow-lg transition">
+                    Try Interactive Demo
+                </button>
+                <button onclick="document.getElementById('documentation').scrollIntoView({behavior:'smooth'})" class="px-8 py-3 border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition">
+                    View Documentation
+                </button>
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+                <div class="bg-white/10 backdrop-blur-lg rounded-lg p-6">
+                    <div class="text-4xl font-bold">12M+</div>
+                    <div class="text-sm opacity-90">Requests/Second</div>
+                </div>
+                <div class="bg-white/10 backdrop-blur-lg rounded-lg p-6">
+                    <div class="text-4xl font-bold">&lt;5ms</div>
+                    <div class="text-sm opacity-90">Ad Selection</div>
+                </div>
+                <div class="bg-white/10 backdrop-blur-lg rounded-lg p-6">
+                    <div class="text-4xl font-bold">99.99%</div>
+                    <div class="text-sm opacity-90">Uptime SLA</div>
+                </div>
+                <div class="bg-white/10 backdrop-blur-lg rounded-lg p-6">
+                    <div class="text-4xl font-bold">45%</div>
+                    <div class="text-sm opacity-90">Avg Arbitrage Margin</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4">
+            <h2 class="text-4xl font-bold text-center mb-12">Platform Features</h2>
+
+            <!-- Feature Tabs -->
+            <div class="flex justify-center space-x-4 mb-12 border-b">
+                <button onclick="showFeatureTab('advertiser')" id="tab-advertiser" class="px-6 py-3 font-semibold tab-active">Advertiser</button>
+                <button onclick="showFeatureTab('publisher')" id="tab-publisher" class="px-6 py-3 font-semibold">Publisher</button>
+                <button onclick="showFeatureTab('admin')" id="tab-admin" class="px-6 py-3 font-semibold">Admin</button>
+                <button onclick="showFeatureTab('mobile')" id="tab-mobile" class="px-6 py-3 font-semibold">Mobile App</button>
+            </div>
+
+            <!-- Advertiser Features -->
+            <div id="feature-advertiser" class="feature-content">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="space-y-6">
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <h3 class="text-xl font-semibold mb-2 flex items-center">
+                                <span class="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mr-3">1</span>
+                                Campaign Management
+                            </h3>
+                            <p class="text-gray-600">Create, manage, and optimize advertising campaigns with advanced targeting options including demographics, interests, geolocation, and device types.</p>
+                        </div>
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <h3 class="text-xl font-semibold mb-2 flex items-center">
+                                <span class="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center mr-3">2</span>
+                                AI-Powered Bidding
+                            </h3>
+                            <p class="text-gray-600">Automatic bid optimization using machine learning to maximize ROI. Support for CPC, CPM, CPA, and custom bidding strategies.</p>
+                        </div>
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <h3 class="text-xl font-semibold mb-2 flex items-center">
+                                <span class="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mr-3">3</span>
+                                Real-Time Analytics
+                            </h3>
+                            <p class="text-gray-600">Live performance tracking with detailed metrics: impressions, clicks, conversions, CTR, CVR, and ROAS. Customizable dashboards and reports.</p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-900 rounded-lg p-8">
+                        <canvas id="advertiserChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Publisher Features -->
+            <div id="feature-publisher" class="feature-content hidden">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="space-y-6">
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <h3 class="text-xl font-semibold mb-2 flex items-center">
+                                <span class="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mr-3">1</span>
+                                Ad Unit Management
+                            </h3>
+                            <p class="text-gray-600">Create and manage ad units across websites and mobile apps. Support for display, video, and native ad formats.</p>
+                        </div>
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <h3 class="text-xl font-semibold mb-2 flex items-center">
+                                <span class="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center mr-3">2</span>
+                                Revenue Optimization
+                            </h3>
+                            <p class="text-gray-600">Header bidding, floor price optimization, and automatic format selection to maximize eCPM and fill rates.</p>
+                        </div>
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <h3 class="text-xl font-semibold mb-2 flex items-center">
+                                <span class="w-8 h-8 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mr-3">3</span>
+                                Payment Management
+                            </h3>
+                            <p class="text-gray-600">Net-30 payment terms, multiple payment methods (bank transfer, PayPal), and detailed revenue reports.</p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-900 rounded-lg p-8">
+                        <canvas id="publisherChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Features -->
+            <div id="feature-admin" class="feature-content hidden">
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg">
+                        <div class="text-3xl mb-2">👥</div>
+                        <h3 class="text-lg font-semibold mb-2">User Management</h3>
+                        <p class="text-sm text-gray-700">Complete user lifecycle management with role-based access control.</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg">
+                        <div class="text-3xl mb-2">💰</div>
+                        <h3 class="text-lg font-semibold mb-2">Financial Oversight</h3>
+                        <p class="text-sm text-gray-700">Revenue tracking, payment processing, and billing management.</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg">
+                        <div class="text-3xl mb-2">🔒</div>
+                        <h3 class="text-lg font-semibold mb-2">Security & Compliance</h3>
+                        <p class="text-sm text-gray-700">Fraud detection, audit logs, and compliance monitoring.</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-lg">
+                        <div class="text-3xl mb-2">📊</div>
+                        <h3 class="text-lg font-semibold mb-2">System Monitoring</h3>
+                        <p class="text-sm text-gray-700">Real-time platform health, performance metrics, and alerts.</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-lg">
+                        <div class="text-3xl mb-2">✅</div>
+                        <h3 class="text-lg font-semibold mb-2">Content Moderation</h3>
+                        <p class="text-sm text-gray-700">Creative review queue, approval workflows, and policy enforcement.</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-pink-50 to-pink-100 p-6 rounded-lg">
+                        <div class="text-3xl mb-2">⚙️</div>
+                        <h3 class="text-lg font-semibold mb-2">Platform Configuration</h3>
+                        <p class="text-sm text-gray-700">System settings, feature flags, and integration management.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Features -->
+            <div id="feature-mobile" class="feature-content hidden">
+                <div class="flex justify-center">
+                    <div class="mobile-frame">
+                        <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
+                            <div class="flex items-center justify-between">
+                                <div class="font-semibold">Dashboard</div>
+                                <div class="flex space-x-2">
+                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-white/20">🔔</button>
+                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-white/20">👤</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-4 space-y-4 overflow-y-auto" style="height: calc(100% - 120px);">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <div class="text-2xl font-bold text-blue-600">2.5M</div>
+                                    <div class="text-xs text-gray-600">Impressions</div>
+                                    <div class="text-xs text-green-600">+15.2%</div>
+                                </div>
+                                <div class="bg-green-50 p-4 rounded-lg">
+                                    <div class="text-2xl font-bold text-green-600">50K</div>
+                                    <div class="text-xs text-gray-600">Clicks</div>
+                                    <div class="text-xs text-green-600">+22.4%</div>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-lg shadow p-4">
+                                <div class="text-sm font-semibold mb-2">Active Campaigns</div>
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                        <div>
+                                            <div class="text-xs font-medium">Summer Sale 2025</div>
+                                            <div class="text-xs text-gray-600">$2,340 / $5,000</div>
+                                        </div>
+                                        <div class="text-green-600 text-xs">+15%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 bg-white border-t flex justify-around py-2">
+                            <button class="flex flex-col items-center text-blue-600">
+                                <span class="text-xl">📊</span>
+                                <span class="text-xs">Dashboard</span>
+                            </button>
+                            <button class="flex flex-col items-center text-gray-400">
+                                <span class="text-xl">🎯</span>
+                                <span class="text-xs">Campaigns</span>
+                            </button>
+                            <button class="flex flex-col items-center text-gray-400">
+                                <span class="text-xl">📈</span>
+                                <span class="text-xs">Analytics</span>
+                            </button>
+                            <button class="flex flex-col items-center text-gray-400">
+                                <span class="text-xl">💰</span>
+                                <span class="text-xl">Billing</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Demo Section -->
+    <section id="demo" class="py-20 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <h2 class="text-4xl font-bold text-center mb-4">Try the Platform</h2>
+            <p class="text-center text-gray-600 mb-12">Select a user role to explore the platform interface</p>
+
+            <!-- Role Selector -->
+            <div class="flex justify-center space-x-4 mb-8">
+                <button onclick="showDemo('advertiser')" id="demo-advertiser" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    Advertiser Demo
+                </button>
+                <button onclick="showDemo('publisher')" id="demo-publisher" class="px-6 py-3 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-600 transition">
+                    Publisher Demo
+                </button>
+                <button onclick="showDemo('admin')" id="demo-admin" class="px-6 py-3 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-600 transition">
+                    Admin Demo
+                </button>
+            </div>
+
+            <!-- Demo Content -->
+            <div id="demo-content" class="bg-white rounded-lg shadow-lg p-8">
+                <div id="advertiser-demo">
+                    <h3 class="text-2xl font-bold mb-6">Advertiser Dashboard</h3>
+                    <div class="grid md:grid-cols-4 gap-4 mb-8">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-gray-600">Impressions</span>
+                                <span class="text-2xl">👁️</span>
+                            </div>
+                            <div class="text-2xl font-bold">2.5M</div>
+                            <div class="text-sm text-green-600">↑ 15.2%</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-gray-600">Clicks</span>
+                                <span class="text-2xl">👆</span>
+                            </div>
+                            <div class="text-2xl font-bold">50K</div>
+                            <div class="text-sm text-green-600">↑ 22.4%</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-gray-600">Conversions</span>
+                                <span class="text-2xl">✅</span>
+                            </div>
+                            <div class="text-2xl font-bold">1,250</div>
+                            <div class="text-sm text-green-600">↑ 8.7%</div>
+                        </div>
+                        <div class="bg-yellow-50 p-4 rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-gray-600">Spent</span>
+                                <span class="text-2xl">💰</span>
+                            </div>
+                            <div class="text-2xl font-bold">$12.5K</div>
+                            <div class="text-sm text-gray-600">of $25K</div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-lg">
+                        <canvas id="demo-chart"></canvas>
+                    </div>
+                </div>
+                <div id="publisher-demo" class="hidden">
+                    <h3 class="text-2xl font-bold mb-6">Publisher Dashboard</h3>
+                    <!-- Publisher demo content -->
+                </div>
+                <div id="admin-demo" class="hidden">
+                    <h3 class="text-2xl font-bold mb-6">Admin Dashboard</h3>
+                    <!-- Admin demo content -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Documentation Section -->
+    <section id="documentation" class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4">
+            <h2 class="text-4xl font-bold text-center mb-12">Documentation & Resources</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="bg-white border-2 border-gray-200 rounded-lg p-6 hover:border-blue-600 transition cursor-pointer">
+                    <div class="text-4xl mb-4">📚</div>
+                    <h3 class="text-xl font-semibold mb-2">User Manuals</h3>
+                    <p class="text-gray-600 mb-4">Comprehensive guides for advertisers, publishers, and admins.</p>
+                    <ul class="space-y-2 text-sm text-blue-600">
+                        <li><a href="docs/manuals/user/ADVERTISER_USER_MANUAL.md" class="hover:underline">→ Advertiser Manual</a></li>
+                        <li><a href="docs/manuals/user/PUBLISHER_USER_MANUAL.md" class="hover:underline">→ Publisher Manual</a></li>
+                        <li><a href="docs/manuals/user/ADMIN_QUICK_REFERENCE.md" class="hover:underline">→ Admin Reference</a></li>
+                    </ul>
+                </div>
+                <div class="bg-white border-2 border-gray-200 rounded-lg p-6 hover:border-blue-600 transition cursor-pointer">
+                    <div class="text-4xl mb-4">🎥</div>
+                    <h3 class="text-xl font-semibold mb-2">Video Training</h3>
+                    <p class="text-gray-600 mb-4">Step-by-step video tutorials and training materials.</p>
+                    <ul class="space-y-2 text-sm text-blue-600">
+                        <li><a href="docs/manuals/video-scripts/ADVERTISER_TRAINING_SCRIPT.md" class="hover:underline">→ Advertiser Training</a></li>
+                        <li><a href="#" class="hover:underline">→ Publisher Training</a></li>
+                        <li><a href="#" class="hover:underline">→ Advanced Features</a></li>
+                    </ul>
+                </div>
+                <div class="bg-white border-2 border-gray-200 rounded-lg p-6 hover:border-blue-600 transition cursor-pointer">
+                    <div class="text-4xl mb-4">🚀</div>
+                    <h3 class="text-xl font-semibold mb-2">API & Integration</h3>
+                    <p class="text-gray-600 mb-4">Developer documentation and integration guides.</p>
+                    <ul class="space-y-2 text-sm text-blue-600">
+                        <li><a href="TURBOSPIKE_INTEGRATION.md" class="hover:underline">→ Turbospike Integration</a></li>
+                        <li><a href="DEPLOYMENT.md" class="hover:underline">→ Deployment Guide</a></li>
+                        <li><a href="TEST_REPORT.md" class="hover:underline">→ Test Report</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Mobile App Downloads -->
+            <div class="mt-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-12 text-center text-white">
+                <h3 class="text-3xl font-bold mb-4">Download Mobile App</h3>
+                <p class="mb-8 opacity-90">Manage your campaigns on the go with our iOS and Android apps</p>
+                <div class="flex justify-center space-x-4">
+                    <button class="px-8 py-3 bg-white text-gray-900 rounded-lg font-semibold hover:shadow-lg transition flex items-center space-x-2">
+                        <span>🍎</span>
+                        <div class="text-left">
+                            <div class="text-xs">Download on the</div>
+                            <div class="font-bold">App Store</div>
+                        </div>
+                    </button>
+                    <button class="px-8 py-3 bg-white text-gray-900 rounded-lg font-semibold hover:shadow-lg transition flex items-center space-x-2">
+                        <span>🤖</span>
+                        <div class="text-left">
+                            <div class="text-xs">GET IT ON</div>
+                            <div class="font-bold">Google Play</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-8">
+                <div>
+                    <h4 class="font-semibold mb-4">Product</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#features" class="hover:text-white">Features</a></li>
+                        <li><a href="#demo" class="hover:text-white">Demo</a></li>
+                        <li><a href="#" class="hover:text-white">Pricing</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Resources</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#documentation" class="hover:text-white">Documentation</a></li>
+                        <li><a href="#" class="hover:text-white">API Reference</a></li>
+                        <li><a href="#" class="hover:text-white">Support</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Company</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#" class="hover:text-white">About</a></li>
+                        <li><a href="#" class="hover:text-white">Blog</a></li>
+                        <li><a href="#" class="hover:text-white">Careers</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Legal</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#" class="hover:text-white">Privacy</a></li>
+                        <li><a href="#" class="hover:text-white">Terms</a></li>
+                        <li><a href="#" class="hover:text-white">Security</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
+                <p>&copy; 2025 AdTech Platform. All rights reserved. Powered by Turbospike.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Navigation
+        function showSection(section) {
+            document.getElementById('overview')?.scrollIntoView({behavior: 'smooth'});
+            if (section === 'features') document.getElementById('features')?.scrollIntoView({behavior: 'smooth'});
+            if (section === 'demo') document.getElementById('demo')?.scrollIntoView({behavior: 'smooth'});
+        }
+
+        // Feature Tabs
+        function showFeatureTab(tab) {
+            ['advertiser', 'publisher', 'admin', 'mobile'].forEach(t => {
+                document.getElementById(`feature-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}`).classList.remove('tab-active');
+            });
+            document.getElementById(`feature-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+        }
+
+        // Demo Selector
+        function showDemo(demo) {
+            ['advertiser', 'publisher', 'admin'].forEach(d => {
+                document.getElementById(`${d}-demo`).classList.add('hidden');
+                document.getElementById(`demo-${d}`).classList.remove('bg-blue-600', 'text-white');
+                document.getElementById(`demo-${d}`).classList.add('bg-white', 'border-2', 'border-gray-300');
+            });
+            document.getElementById(`${demo}-demo`).classList.remove('hidden');
+            document.getElementById(`demo-${demo}`).classList.remove('bg-white', 'border-2', 'border-gray-300');
+            document.getElementById(`demo-${demo}`).classList.add('bg-blue-600', 'text-white');
+        }
+
+        // Charts
+        window.onload = function() {
+            // Advertiser Chart
+            const advertiserCtx = document.getElementById('advertiserChart');
+            if (advertiserCtx) {
+                new Chart(advertiserCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                        datasets: [{
+                            label: 'Impressions',
+                            data: [120000, 150000, 180000, 170000, 190000, 210000, 250000],
+                            borderColor: 'rgb(59, 130, 246)',
+                            tension: 0.4
+                        }, {
+                            label: 'Clicks',
+                            data: [2400, 3000, 3600, 3400, 3800, 4200, 5000],
+                            borderColor: 'rgb(16, 185, 129)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { labels: { color: 'white' } } },
+                        scales: {
+                            y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                            x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                        }
+                    }
+                });
+            }
+
+            // Publisher Chart
+            const publisherCtx = document.getElementById('publisherChart');
+            if (publisherCtx) {
+                new Chart(publisherCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                        datasets: [{
+                            label: 'Revenue ($)',
+                            data: [450, 520, 680, 590, 720, 840, 950],
+                            backgroundColor: 'rgb(59, 130, 246)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { labels: { color: 'white' } } },
+                        scales: {
+                            y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                            x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                        }
+                    }
+                });
+            }
+
+            // Demo Chart
+            const demoCtx = document.getElementById('demo-chart');
+            if (demoCtx) {
+                new Chart(demoCtx, {
+                    type: 'line',
+                    data: {
+                        labels: Array.from({length: 30}, (_, i) => `Day ${i+1}`),
+                        datasets: [{
+                            label: 'Impressions',
+                            data: Array.from({length: 30}, () => Math.random() * 100000 + 50000),
+                            borderColor: 'rgb(59, 130, 246)',
+                            tension: 0.4,
+                            fill: true,
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: true } }
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+</html>
