@@ -1,6 +1,6 @@
-import { prisma } from '../../../config/database';
-import { logger } from '../../../utils/logger';
-import { getRedisClient } from '../../../config/redis';
+import { prisma } from '../../config/database';
+import { logger } from '../../utils/logger';
+import { getRedisClient } from '../../config/redis';
 
 /**
  * Predictive Analytics Engine
@@ -11,7 +11,7 @@ export class PredictiveAnalytics {
   private static instance: PredictiveAnalytics;
   private redis = getRedisClient();
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): PredictiveAnalytics {
     if (!PredictiveAnalytics.instance) {
@@ -207,7 +207,7 @@ export class PredictiveAnalytics {
 
     // Calculate historical metrics
     const purchases = customer.events;
-    const totalRevenue = purchases.reduce((sum, e) => {
+    const totalRevenue = purchases.reduce((sum: number, e: any) => {
       const props = e.properties as any;
       return sum + (props?.value || 0);
     }, 0);

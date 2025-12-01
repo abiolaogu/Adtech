@@ -744,10 +744,12 @@ export class DataManagementPlatform {
     ];
 
     // Sort by cheapest CPM
+    // Sort by cheapest CPM and map to result format
     return availableExchanges
       .sort((a, b) => a.cpm - b.cpm)
       .map(ex => ({
-        ...ex,
+        exchange: ex.exchange,
+        estimatedCPM: ex.cpm,
         segments: profile.segments
       }));
   }

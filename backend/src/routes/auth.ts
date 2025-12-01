@@ -51,11 +51,7 @@ router.post('/register', async (req, res, next) => {
         organizationId,
         role: 'USER'
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
+      include: {
         organization: true
       }
     });
@@ -64,7 +60,7 @@ router.post('/register', async (req, res, next) => {
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any }
     );
 
     res.status(201).json({
@@ -111,7 +107,7 @@ router.post('/login', async (req, res, next) => {
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any }
     );
 
     const { password: _, ...userWithoutPassword } = user;
@@ -145,13 +141,6 @@ router.get('/me', async (req, res, next) => {
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
-        organization: true
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
         organization: true
       }
     });

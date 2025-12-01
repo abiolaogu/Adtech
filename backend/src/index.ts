@@ -50,12 +50,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/v1', routes);
-
-// Error handling
-app.use(errorHandler);
-
 // Initialize services
 async function initializeServices() {
   try {
@@ -67,6 +61,12 @@ async function initializeServices() {
     const rtbEngine = RTBEngine.getInstance();
     await rtbEngine.initialize(io);
     logger.info('RTB Engine initialized successfully');
+
+    // API Routes - loaded after Redis initialization
+    app.use('/api/v1', routes);
+
+    // Error handling
+    app.use(errorHandler);
 
     // Start server
     httpServer.listen(PORT, () => {

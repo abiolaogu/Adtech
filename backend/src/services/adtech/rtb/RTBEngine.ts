@@ -1,9 +1,10 @@
 import { Server as SocketServer } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
-import { getRedisClient } from '../../../config/redis';
 import { logger } from '../../../utils/logger';
 import { prisma } from '../../../config/database';
 import { BidRequest, BidResponse, AuctionResult } from './types';
+import { PartnerService } from './PartnerService';
+import { RedisService } from '../../caching/RedisService';
 
 /**
  * RTB Engine - Handles real-time bidding auctions
@@ -12,10 +13,11 @@ import { BidRequest, BidResponse, AuctionResult } from './types';
 export class RTBEngine {
   private static instance: RTBEngine;
   private io?: SocketServer;
-  private redis = getRedisClient();
+  private redisService = RedisService.getInstance();
+  private partnerService = PartnerService.getInstance();
   private readonly RTB_TIMEOUT = parseInt(process.env.RTB_TIMEOUT_MS || '100');
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): RTBEngine {
     if (!RTBEngine.instance) {
@@ -40,28 +42,37 @@ export class RTBEngine {
     logger.debug('Starting RTB auction', { auctionId, placementId: bidRequest.placementId });
 
     try {
-      // 1. Find eligible campaigns
-      const eligibleCampaigns = await this.findEligibleCampaigns(bidRequest);
+      // 1. Find eligible internal campaigns
+      const internalCampaigns = await this.findEligibleCampaigns(bidRequest);
 
-      if (eligibleCampaigns.length === 0) {
-        logger.debug('No eligible campaigns found', { auctionId });
+      // 2. Get active external DSPs
+      const externalDSPs = await this.partnerService.getActiveDSPs();
+
+      if (internalCampaigns.length === 0 && externalDSPs.length === 0) {
+        logger.debug('No eligible campaigns or DSPs found', { auctionId });
         return this.createNoFillResult(auctionId, bidRequest);
       }
 
-      // 2. Request bids from DSPs (demand-side platforms)
-      const bidPromises = eligibleCampaigns.map(campaign =>
-        this.requestBid(campaign, bidRequest, auctionId)
+      // 3. Request bids from Internal Campaigns and External DSPs
+      const internalBidPromises = internalCampaigns.map(campaign =>
+        this.requestInternalBid(campaign, bidRequest, auctionId)
       );
 
-      // 3. Wait for bids with timeout
-      const bids = await Promise.race([
-        Promise.allSettled(bidPromises),
-        this.timeout(this.RTB_TIMEOUT)
-      ]) as PromiseSettledResult<BidResponse>[];
+      const externalBidPromises = externalDSPs.map(dsp =>
+        this.partnerService.requestBidFromDSP(dsp, bidRequest)
+      );
 
-      const validBids = bids
+      // 4. Wait for bids with timeout
+      const allPromises = [...internalBidPromises, ...externalBidPromises];
+
+      const results = await Promise.race([
+        Promise.allSettled(allPromises),
+        this.timeout(this.RTB_TIMEOUT)
+      ]) as PromiseSettledResult<BidResponse | null>[];
+
+      const validBids = results
         .filter((result): result is PromiseFulfilledResult<BidResponse> =>
-          result.status === 'fulfilled' && result.value.bidPrice > 0
+          result.status === 'fulfilled' && result.value !== null && result.value.bidPrice > 0
         )
         .map(result => result.value);
 
@@ -70,7 +81,7 @@ export class RTBEngine {
         return this.createNoFillResult(auctionId, bidRequest);
       }
 
-      // 4. Run second-price auction (highest bidder wins, pays second-highest price)
+      // 5. Run second-price auction (highest bidder wins, pays second-highest price)
       const auctionResult = this.runSecondPriceAuction(
         validBids,
         bidRequest.floorPrice,
@@ -78,10 +89,10 @@ export class RTBEngine {
         bidRequest
       );
 
-      // 5. Store auction results
+      // 6. Store auction results
       await this.storeAuctionResult(auctionResult);
 
-      // 6. Emit real-time auction events
+      // 7. Emit real-time auction events
       this.emitAuctionEvent(auctionResult);
 
       const duration = Date.now() - startTime;
@@ -106,31 +117,45 @@ export class RTBEngine {
   private async findEligibleCampaigns(bidRequest: BidRequest) {
     const now = new Date();
 
-    const campaigns = await prisma.campaign.findMany({
-      where: {
-        status: 'ACTIVE',
-        startDate: { lte: now },
-        OR: [
-          { endDate: null },
-          { endDate: { gte: now } }
-        ],
-        spent: {
-          lt: prisma.campaign.fields.budget
+    // Cache key for active campaigns
+    const cacheKey = 'campaigns:active:rtb';
+
+    // Try to get from cache first, or fetch from DB
+    const campaigns = await this.redisService.getOrSet(cacheKey, 60, async () => {
+      return prisma.campaign.findMany({
+        where: {
+          status: 'ACTIVE',
+          startDate: { lte: now },
+          OR: [
+            { endDate: null },
+            { endDate: { gte: now } }
+          ]
+        },
+        include: {
+          advertiser: true,
+          creatives: {
+            where: { active: true },
+            include: { creative: true }
+          }
         }
-      },
-      include: {
-        advertiser: true,
-        creatives: {
-          where: { active: true },
-          include: { creative: true }
-        }
-      }
+      });
     });
 
-    // Filter by targeting rules
-    return campaigns.filter(campaign =>
-      this.matchesTargeting(campaign, bidRequest)
-    );
+    // Filter by targeting rules and budget
+    // Note: Budget check should ideally be done with Redis counters for real-time accuracy
+    const eligibleCampaigns = [];
+
+    for (const campaign of campaigns) {
+      if (this.matchesTargeting(campaign, bidRequest)) {
+        // Check real-time budget
+        const spent = await this.redisService.getOrSet(`campaign:${campaign.id}:spent`, 300, async () => campaign.spent);
+        if (spent < campaign.budget) {
+          eligibleCampaigns.push(campaign);
+        }
+      }
+    }
+
+    return eligibleCampaigns;
   }
 
   /**
@@ -140,17 +165,17 @@ export class RTBEngine {
     const targeting = campaign.targeting as any;
 
     // Device targeting
-    if (targeting.devices && !targeting.devices.includes(bidRequest.deviceType)) {
+    if (targeting.devices && targeting.devices.length > 0 && !targeting.devices.includes(bidRequest.deviceType)) {
       return false;
     }
 
     // Geo targeting
-    if (targeting.countries && !targeting.countries.includes(bidRequest.country)) {
+    if (targeting.countries && targeting.countries.length > 0 && !targeting.countries.includes(bidRequest.country)) {
       return false;
     }
 
     // Inventory type targeting
-    if (targeting.inventoryTypes && !targeting.inventoryTypes.includes(bidRequest.inventoryType)) {
+    if (targeting.inventoryTypes && targeting.inventoryTypes.length > 0 && !targeting.inventoryTypes.includes(bidRequest.inventoryType)) {
       return false;
     }
 
@@ -158,9 +183,9 @@ export class RTBEngine {
   }
 
   /**
-   * Request bid from a campaign (DSP simulation)
+   * Request bid from an internal campaign
    */
-  private async requestBid(
+  private async requestInternalBid(
     campaign: any,
     bidRequest: BidRequest,
     auctionId: string
@@ -192,11 +217,12 @@ export class RTBEngine {
       bidId: uuidv4(),
       campaignId: campaign.id,
       advertiserId: campaign.advertiserId,
-      bidPrice: Math.max(bidPrice, bidRequest.floorPrice),
+      bidPrice: parseFloat(Math.max(bidPrice, bidRequest.floorPrice).toFixed(2)),
       creativeId: campaign.creatives[0]?.creativeId,
       metadata: {
         bidStrategy: campaign.bidStrategy,
-        originalBid: campaign.maxBid
+        originalBid: campaign.maxBid,
+        pacingFactor
       }
     };
   }
@@ -213,16 +239,18 @@ export class RTBEngine {
     const elapsed = now - start;
     const progress = elapsed / totalDuration;
 
-    const spendProgress = campaign.spent / campaign.budget;
+    // Get real-time spend from Redis
+    const currentSpend = await this.redisService.getOrSet(`campaign:${campaign.id}:spent`, 60, async () => campaign.spent);
+    const spendProgress = currentSpend / campaign.budget;
 
     // If spending too fast, reduce pacing
-    if (spendProgress > progress + 0.1) {
-      return 0.5;
+    if (spendProgress > progress + 0.05) {
+      return 0.1; // Slow down significantly
     }
 
     // If spending too slow, increase pacing
-    if (spendProgress < progress - 0.1) {
-      return 1.5;
+    if (spendProgress < progress - 0.05) {
+      return 1.2; // Boost slightly
     }
 
     return 1.0;
@@ -288,12 +316,15 @@ export class RTBEngine {
         }
       });
 
-      // Update campaign spent (will be finalized on impression)
-      await this.redis.hincrby(
-        `campaign:${result.winningBid.campaignId}:stats`,
-        'pendingSpend',
-        Math.round(result.clearingPrice * 100)
-      );
+      // Update campaign pending spend in Redis
+      // This is "pending" until the impression is actually confirmed
+      if (!result.winningBid.campaignId.startsWith('ext_')) {
+        await this.redisService.incrementHash(
+          `campaign:${result.winningBid.campaignId}:stats`,
+          'pendingSpend',
+          result.clearingPrice
+        );
+      }
     } catch (error) {
       logger.error('Failed to store auction result', { error });
     }

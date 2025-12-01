@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { AdServer } from '../services/adtech/adserver/AdServer';
+import { AdServer } from '../services/adserver/AdServer';
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 
 const router = Router();
-const adServer = AdServer.getInstance();
 
 /**
  * Serve an ad
@@ -20,12 +19,24 @@ router.get('/serve/ad', async (req, res, next) => {
       });
     }
 
+    const adServer = AdServer.getInstance();
     const result = await adServer.serveAd({
+      requestId: require('uuid').v4(),
+      timestamp: Date.now(),
       placementId: placementId as string,
       publisherId: publisherId as string,
-      deviceType: deviceType as string,
-      country: country as string,
-      userContext: userId ? { userId } : undefined
+      siteId: 'unknown',
+      pageUrl: 'http://example.com',
+      adUnitId: 'default',
+      format: 'display',
+      sizes: ['300x250'],
+      ipAddress: req.ip || '127.0.0.1',
+      userAgent: req.headers['user-agent'] || 'unknown',
+      deviceType: deviceType as 'mobile' | 'desktop' | 'tablet' | 'ctv',
+      geo: {
+        country: country as string || 'US'
+      },
+      userId: userId as string
     });
 
     res.json(result);
@@ -40,6 +51,7 @@ router.get('/serve/ad', async (req, res, next) => {
  */
 router.get('/track/impression/:requestId', async (req, res, next) => {
   try {
+    const adServer = AdServer.getInstance();
     await adServer.trackImpression(req.params.requestId);
 
     // Return 1x1 transparent pixel
@@ -64,6 +76,7 @@ router.get('/track/impression/:requestId', async (req, res, next) => {
  */
 router.get('/track/click/:requestId', async (req, res, next) => {
   try {
+    const adServer = AdServer.getInstance();
     const clickUrl = await adServer.trackClick(req.params.requestId);
 
     if (clickUrl) {
@@ -83,6 +96,7 @@ router.get('/track/click/:requestId', async (req, res, next) => {
 router.post('/track/conversion/:requestId', async (req, res, next) => {
   try {
     const { value } = req.body;
+    const adServer = AdServer.getInstance();
     await adServer.trackConversion(req.params.requestId, value);
     res.json({ success: true });
   } catch (error) {

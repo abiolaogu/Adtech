@@ -1,106 +1,21 @@
 import { EventEmitter } from 'events';
-import { getRedisClient, getRedisPubClient, getRedisSubClient } from '../../../config/redis';
-import { logger } from '../../../utils/logger';
-import { prisma } from '../../../config/database';
+import { getRedisClient, getRedisPubClient, getRedisSubClient } from '../../config/redis';
+import { logger } from '../../utils/logger';
+import { prisma } from '../../config/database';
 
-/**
- * Real-Time Stream Processing Engine
- * Processes billions of events per day with sub-millisecond latency
- * Inspired by Apache Kafka/Flink but optimized for AdTech
- */
 export class StreamProcessor extends EventEmitter {
-  private static instance: StreamProcessor;
   private redis = getRedisClient();
   private pubClient = getRedisPubClient();
   private subClient = getRedisSubClient();
-  private processors: Map<string, StreamHandler> = new Map();
-  private batchBuffer: Map<string, any[]> = new Map();
-  private readonly BATCH_SIZE = 1000;
+  private batchBuffer = new Map<string, any[]>();
+  private processors = new Map<string, StreamHandler>();
+  private readonly BATCH_SIZE = 100;
   private readonly BATCH_INTERVAL = 5000; // 5 seconds
 
-  private constructor() {
+  constructor() {
     super();
-    this.initializeProcessors();
     this.startBatchProcessing();
   }
-
-  static getInstance(): StreamProcessor {
-    if (!StreamProcessor.instance) {
-      StreamProcessor.instance = new StreamProcessor();
-    }
-    return StreamProcessor.instance;
-  }
-
-  /**
-   * Initialize stream processors
-   */
-  private initializeProcessors() {
-    // Impression stream processor
-    this.registerProcessor('impressions', {
-      process: async (events) => this.processImpressions(events),
-      aggregation: 'time-window',
-      windowSize: 60000 // 1 minute
-    });
-
-    // Click stream processor
-    this.registerProcessor('clicks', {
-      process: async (events) => this.processClicks(events),
-      aggregation: 'time-window',
-      windowSize: 60000
-    });
-
-    // Conversion stream processor
-    this.registerProcessor('conversions', {
-      process: async (events) => this.processConversions(events),
-      aggregation: 'session',
-      windowSize: 1800000 // 30 minutes
-    });
-
-    // Real-time bidding stream
-    this.registerProcessor('bids', {
-      process: async (events) => this.processBids(events),
-      aggregation: 'count',
-      windowSize: 1000
-    });
-
-    // User behavior stream
-    this.registerProcessor('user-events', {
-      process: async (events) => this.processUserEvents(events),
-      aggregation: 'session',
-      windowSize: 600000 // 10 minutes
-    });
-
-    logger.info('Stream processors initialized');
-  }
-
-  /**
-   * Register a stream processor
-   */
-  registerProcessor(streamName: string, handler: StreamHandler) {
-    this.processors.set(streamName, handler);
-    this.batchBuffer.set(streamName, []);
-
-    // Subscribe to Redis stream
-    this.subscribeToStream(streamName);
-  }
-
-  /**
-   * Subscribe to Redis Pub/Sub stream
-   */
-  private async subscribeToStream(streamName: string) {
-    await this.subClient.subscribe(`stream:${streamName}`, (err) => {
-      if (err) {
-        logger.error(`Failed to subscribe to stream ${streamName}`, { err });
-      }
-    });
-
-    this.subClient.on('message', (channel, message) => {
-      if (channel === `stream:${streamName}`) {
-        this.handleStreamEvent(streamName, JSON.parse(message));
-      }
-    });
-  }
-
   /**
    * Publish event to stream
    */

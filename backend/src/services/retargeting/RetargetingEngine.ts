@@ -393,7 +393,7 @@ export class RetargetingEngine {
       intent: 1.5,
       purchase: 2.0,
       loyalty: 1.2
-    }[funnelStage];
+    }[funnelStage] || 1.0;
 
     const suggestedBid = baseBid * intentMultiplier * funnelMultiplier;
 
