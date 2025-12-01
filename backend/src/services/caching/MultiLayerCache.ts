@@ -1,6 +1,6 @@
 import { LRUCache } from 'lru-cache';
-import { getRedisClient } from '../../../config/redis';
-import { logger } from '../../../utils/logger';
+import { getRedisClient } from '../../config/redis';
+import { logger } from '../../utils/logger';
 
 /**
  * Multi-Layer Caching System

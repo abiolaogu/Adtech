@@ -1,0 +1,22 @@
+# Snyk configuration
+version: v1.25.0
+
+# Ignore specific vulnerabilities (with justification)
+ignore:
+  # Example: Low severity prototype pollution in lodash
+  # SNYK-JS-LODASH-590103:
+  #   - '*':
+  #       reason: Low severity, no direct exposure
+  #       expires: 2025-12-31T00:00:00.000Z
+
+# Language settings
+language-settings:
+  javascript:
+    # Exclude dev dependencies from production scans
+    ignoreDevDependencies: true
+
+# Patch settings
+patch: {}
+
+# Organization settings
+org: your-org-name

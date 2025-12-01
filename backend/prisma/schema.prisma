@@ -561,10 +561,34 @@ model Report {
   updatedAt   DateTime @updatedAt
 }
 
+
 enum ReportType {
   CAMPAIGN_PERFORMANCE
   INVENTORY_UTILIZATION
   REVENUE
   AUDIENCE_INSIGHTS
   CUSTOM
+}
+
+// ===== EXTERNAL PARTNERS (DSP/SSP) =====
+
+model Partner {
+  id            String   @id @default(uuid())
+  name          String
+  type          PartnerType
+  endpoint      String
+  apiKey        String?
+  
+  // Simulation Config
+  latencyMs     Int      @default(50)
+  winRate       Float    @default(0.5) // 0.0 to 1.0
+  
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum PartnerType {
+  DSP
+  SSP
 }

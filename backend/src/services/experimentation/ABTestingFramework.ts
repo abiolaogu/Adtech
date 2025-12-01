@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getRedisClient } from '../../../config/redis';
-import { prisma } from '../../../config/database';
-import { logger } from '../../../utils/logger';
+import { getRedisClient } from '../../config/redis';
+import { prisma } from '../../config/database';
+import { logger } from '../../utils/logger';
 
 /**
  * Advanced A/B Testing Framework
@@ -12,7 +12,7 @@ export class ABTestingFramework {
   private static instance: ABTestingFramework;
   private redis = getRedisClient();
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): ABTestingFramework {
     if (!ABTestingFramework.instance) {
@@ -42,7 +42,7 @@ export class ABTestingFramework {
         ...v,
         id: v.id || `variant-${i}`,
         allocation: v.allocation || 1 / params.variants.length
-      })),
+      }) as ExperimentVariant),
       targetMetric: params.targetMetric,
       trafficAllocation: params.trafficAllocation,
       algorithm: params.algorithm || 'thompson',
@@ -507,7 +507,7 @@ interface Experiment {
 }
 
 interface ExperimentVariant {
-  id?: string;
+  id: string;
   name: string;
   description?: string;
   allocation: number;

@@ -8,7 +8,7 @@ import { InventoryType, InventoryStatus } from '@prisma/client';
 export class InventoryManager {
   private static instance: InventoryManager;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): InventoryManager {
     if (!InventoryManager.instance) {
@@ -166,9 +166,9 @@ export class InventoryManager {
     });
 
     const total = slots.length;
-    const available = slots.filter(s => s.status === 'AVAILABLE').length;
-    const reserved = slots.filter(s => s.status === 'RESERVED').length;
-    const sold = slots.filter(s => s.status === 'SOLD').length;
+    const available = slots.filter((s: any) => s.status === 'AVAILABLE').length;
+    const reserved = slots.filter((s: any) => s.status === 'RESERVED').length;
+    const sold = slots.filter((s: any) => s.status === 'SOLD').length;
 
     return {
       total,
@@ -221,7 +221,7 @@ export class InventoryManager {
     }
 
     // Calculate average sold price
-    const avgPrice = inventory.slots.reduce((sum, slot) => sum + (slot.price || 0), 0) / inventory.slots.length;
+    const avgPrice = inventory.slots.reduce((sum: number, slot: any) => sum + (slot.price || 0), 0) / inventory.slots.length;
 
     // Calculate utilization rate
     const utilizationRate = (inventory.totalSlots - inventory.availableSlots) / inventory.totalSlots;
@@ -277,9 +277,9 @@ export class InventoryManager {
       })
     ]);
 
-    const totalRevenue = impressions.reduce((sum, imp) => sum + (imp.revenue || 0), 0);
+    const totalRevenue = impressions.reduce((sum: number, imp: { revenue: number | null }) => sum + (imp.revenue || 0), 0);
     const totalImpressions = impressions.length;
-    const totalClicks = impressions.filter(imp => imp.clicked).length;
+    const totalClicks = impressions.filter((imp: { clicked: boolean }) => imp.clicked).length;
     const avgCPM = totalImpressions > 0 ? (totalRevenue / totalImpressions) * 1000 : 0;
     const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
 
@@ -288,14 +288,14 @@ export class InventoryManager {
       period: { startDate, endDate },
       metrics: {
         totalSlots: slots.length,
-        soldSlots: slots.filter(s => s.status === 'SOLD').length,
-        availableSlots: slots.filter(s => s.status === 'AVAILABLE').length,
+        soldSlots: slots.filter((s: { status: string }) => s.status === 'SOLD').length,
+        availableSlots: slots.filter((s: { status: string }) => s.status === 'AVAILABLE').length,
         totalRevenue: Math.round(totalRevenue * 100) / 100,
         totalImpressions,
         totalClicks,
         avgCPM: Math.round(avgCPM * 100) / 100,
         ctr: Math.round(ctr * 100) / 100,
-        fillRate: slots.length > 0 ? (slots.filter(s => s.status === 'SOLD').length / slots.length) * 100 : 0
+        fillRate: slots.length > 0 ? (slots.filter((s: { status: string }) => s.status === 'SOLD').length / slots.length) * 100 : 0
       }
     };
   }
