@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdTech Dashboard - Prototype</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f3f4f6;
+            --sidebar: #1f2937;
+            --text: #111827;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            height: 100vh;
+            background: var(--bg);
+        }
+
+        /* Sidebar */
+        aside {
+            width: 250px;
+            background: var(--sidebar);
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            padding: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            border-bottom: 1px solid #374151;
+        }
+
+        nav {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        nav a {
+            display: block;
+            padding: 12px 20px;
+            color: #9ca3af;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        nav a:hover,
+        nav a.active {
+            background: #374151;
+            color: white;
+            border-left: 4px solid var(--primary);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0;
+            color: var(--text);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background: #d1d5db;
+            border-radius: 50%;
+        }
+
+        /* Stats Grid */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-label {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text);
+        }
+
+        .stat-trend {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .trend-up {
+            color: #059669;
+        }
+
+        .trend-down {
+            color: #dc2626;
+        }
+
+        /* Chart Placeholder */
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            border: 2px dashed #e5e7eb;
+        }
+
+        /* Button */
+        .btn {
+            background: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <aside>
+        <div class="logo">🚀 AdTech Pro</div>
+        <nav>
+            <a href="#" class="active">Dashboard</a>
+            <a href="#">Campaigns</a>
+            <a href="#">Inventory</a>
+            <a href="#">Analytics</a>
+            <a href="#">Settings</a>
+        </nav>
+    </aside>
+
+    <main>
+        <header>
+            <h1>Overview</h1>
+            <div class="user-profile">
+                <span>John Doe</span>
+                <div class="avatar"></div>
+            </div>
+        </header>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-label">Total Impressions</div>
+                <div class="stat-value">2,450,000</div>
+                <div class="stat-trend trend-up">↑ 12% vs last week</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Clicks</div>
+                <div class="stat-value">45,200</div>
+                <div class="stat-trend trend-up">↑ 5% vs last week</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">CTR</div>
+                <div class="stat-value">1.84%</div>
+                <div class="stat-trend trend-down">↓ 0.2% vs last week</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Spend</div>
+                <div class="stat-value">$12,450</div>
+                <div class="stat-trend trend-up">↑ 8% vs last week</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            [Interactive Performance Chart Placeholder]
+        </div>
+
+        <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
+            <a href="#" class="btn">+ New Campaign</a>
+        </div>
+    </main>
+</body>
+
+</html>

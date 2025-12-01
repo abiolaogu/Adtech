@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdTech Platform - Documentation Portal</title>
+    <style>
+        body { font-family: 'Inter', sans-serif; line-height: 1.6; color: #333; max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #f9fafb; }
+        header { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        h1 { margin: 0; color: #111827; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
+        h2 { color: #2563eb; margin-top: 0; }
+        p { color: #6b7280; }
+        a { text-decoration: none; color: inherit; display: block; height: 100%; }
+        .tag { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+        .tag.manual { background: #dbeafe; color: #1e40af; }
+        .tag.tech { background: #fce7f3; color: #9d174d; }
+        .tag.proto { background: #d1fae5; color: #065f46; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <h1>📚 AdTech Platform Documentation</h1>
+        <p>Central hub for manuals, training, specifications, and prototypes.</p>
+    </header>
+
+    <div class="grid">
+        <!-- Manuals -->
+        <a href="../manuals/User_Manual.md">
+            <div class="card">
+                <span class="tag manual">MANUAL</span>
+                <h2>User Manual</h2>
+                <p>Comprehensive guides for Advertisers, Publishers, and Administrators. Learn how to manage campaigns and inventory.</p>
+            </div>
+        </a>
+
+        <a href="../training/Training_Materials.md">
+            <div class="card">
+                <span class="tag manual">TRAINING</span>
+                <h2>Training Materials</h2>
+                <p>Onboarding modules and video scripts to get you up to speed quickly.</p>
+            </div>
+        </a>
+
+        <!-- Technical -->
+        <a href="../technical/Technical_Specs.md">
+            <div class="card">
+                <span class="tag tech">TECHNICAL</span>
+                <h2>Technical Specs</h2>
+                <p>System architecture, API documentation, database schema, and deployment guides.</p>
+            </div>
+        </a>
+
+        <!-- Prototypes -->
+        <a href="dashboard.html">
+            <div class="card">
+                <span class="tag proto">PROTOTYPE</span>
+                <h2>Interactive Dashboard</h2>
+                <p>High-fidelity HTML prototype of the main platform dashboard. Experience the UI flow.</p>
+            </div>
+        </a>
+    </div>
+</body>
+</html>
