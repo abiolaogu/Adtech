@@ -34,12 +34,12 @@ export function errorHandler(
     stack: err.stack,
     statusCode,
     path: req.path,
-    method: req.method
+    method: req.method,
   });
 
   res.status(statusCode).json({
     status: 'error',
     message: isOperational ? message : 'Something went wrong',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 }

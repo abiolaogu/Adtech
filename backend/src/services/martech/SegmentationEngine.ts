@@ -34,8 +34,8 @@ export class SegmentationEngine {
           description: data.description,
           userId: data.userId,
           rules: data.rules as any,
-          status: AudienceStatus.ACTIVE
-        }
+          status: AudienceStatus.ACTIVE,
+        },
       });
 
       logger.info('Audience created', { audienceId: audience.id });
@@ -56,7 +56,7 @@ export class SegmentationEngine {
   async buildSegment(audienceId: string) {
     try {
       const audience = await prisma.audience.findUnique({
-        where: { id: audienceId }
+        where: { id: audienceId },
       });
 
       if (!audience) {
@@ -67,7 +67,7 @@ export class SegmentationEngine {
 
       // Clear existing segments
       await prisma.customerSegment.deleteMany({
-        where: { audienceId }
+        where: { audienceId },
       });
 
       // Find matching customers
@@ -76,22 +76,22 @@ export class SegmentationEngine {
       // Create segments
       if (customers.length > 0) {
         await prisma.customerSegment.createMany({
-          data: customers.map(customerId => ({
+          data: customers.map((customerId) => ({
             audienceId,
-            customerId
-          }))
+            customerId,
+          })),
         });
       }
 
       // Update audience size
       await prisma.audience.update({
         where: { id: audienceId },
-        data: { size: customers.length }
+        data: { size: customers.length },
       });
 
       logger.info('Segment built', {
         audienceId,
-        size: customers.length
+        size: customers.length,
       });
 
       return customers.length;
@@ -111,34 +111,42 @@ export class SegmentationEngine {
     if (rules.demographics) {
       if (rules.demographics.countries) {
         conditions.push({
-          country: { in: rules.demographics.countries }
+          country: { in: rules.demographics.countries },
         });
       }
       if (rules.demographics.cities) {
         conditions.push({
-          city: { in: rules.demographics.cities }
+          city: { in: rules.demographics.cities },
         });
       }
       if (rules.demographics.ageRange) {
         const today = new Date();
-        const minDate = new Date(today.getFullYear() - rules.demographics.ageRange.max, today.getMonth(), today.getDate());
-        const maxDate = new Date(today.getFullYear() - rules.demographics.ageRange.min, today.getMonth(), today.getDate());
+        const minDate = new Date(
+          today.getFullYear() - rules.demographics.ageRange.max,
+          today.getMonth(),
+          today.getDate()
+        );
+        const maxDate = new Date(
+          today.getFullYear() - rules.demographics.ageRange.min,
+          today.getMonth(),
+          today.getDate()
+        );
         conditions.push({
           dateOfBirth: {
             gte: minDate,
-            lte: maxDate
-          }
+            lte: maxDate,
+          },
         });
       }
     }
 
     // Find base customers
-    let customers = await prisma.customer.findMany({
+    const customers = await prisma.customer.findMany({
       where: conditions.length > 0 ? { AND: conditions } : {},
-      select: { id: true }
+      select: { id: true },
     });
 
-    let customerIds = customers.map(c => c.id);
+    let customerIds = customers.map((c) => c.id);
 
     // Behavioral filters
     if (rules.behavioral && customerIds.length > 0) {
@@ -163,7 +171,7 @@ export class SegmentationEngine {
       for (const eventRule of rules.events) {
         const where: any = {
           customerId: { in: Array.from(matchingCustomers) },
-          eventName: eventRule.eventName
+          eventName: eventRule.eventName,
         };
 
         if (eventRule.timeframe) {
@@ -176,17 +184,19 @@ export class SegmentationEngine {
           by: ['customerId'],
           where,
           _count: { id: true },
-          having: eventRule.count ? {
-            id: {
-              [eventRule.count.operator]: eventRule.count.value
-            }
-          } : undefined
+          having: eventRule.count
+            ? {
+                id: {
+                  [eventRule.count.operator]: eventRule.count.value,
+                },
+              }
+            : undefined,
         });
 
-        const eventCustomerIds = new Set(customers.map(c => c.customerId));
+        const eventCustomerIds = new Set(customers.map((c) => c.customerId));
 
         // Intersect with existing matching customers
-        matchingCustomers.forEach(id => {
+        matchingCustomers.forEach((id) => {
           if (!eventCustomerIds.has(id)) {
             matchingCustomers.delete(id);
           }
@@ -200,20 +210,23 @@ export class SegmentationEngine {
   /**
    * Filter customers by custom attributes
    */
-  private async filterByAttributes(customerIds: string[], attributes: Record<string, any>): Promise<string[]> {
+  private async filterByAttributes(
+    customerIds: string[],
+    attributes: Record<string, any>
+  ): Promise<string[]> {
     const customers = await prisma.customer.findMany({
       where: { id: { in: customerIds } },
-      select: { id: true, attributes: true }
+      select: { id: true, attributes: true },
     });
 
     return customers
-      .filter(customer => {
-        const customerAttrs = customer.attributes as Record<string, any> || {};
+      .filter((customer) => {
+        const customerAttrs = (customer.attributes as Record<string, any>) || {};
         return Object.entries(attributes).every(([key, value]) => {
           return customerAttrs[key] === value;
         });
       })
-      .map(c => c.id);
+      .map((c) => c.id);
   }
 
   /**
@@ -231,15 +244,15 @@ export class SegmentationEngine {
             lastName: true,
             country: true,
             city: true,
-            attributes: true
-          }
-        }
+            attributes: true,
+          },
+        },
       },
       take: limit,
-      skip: offset
+      skip: offset,
     });
 
-    return segments.map(s => s.customer);
+    return segments.map((s) => s.customer);
   }
 
   /**
@@ -250,9 +263,9 @@ export class SegmentationEngine {
       where: {
         customerId_audienceId: {
           customerId,
-          audienceId
-        }
-      }
+          audienceId,
+        },
+      },
     });
 
     return !!segment;
@@ -265,8 +278,8 @@ export class SegmentationEngine {
     return await prisma.customerSegment.findMany({
       where: { customerId },
       include: {
-        audience: true
-      }
+        audience: true,
+      },
     });
   }
 
@@ -275,7 +288,7 @@ export class SegmentationEngine {
    */
   async refreshAllAudiences() {
     const audiences = await prisma.audience.findMany({
-      where: { status: AudienceStatus.ACTIVE }
+      where: { status: AudienceStatus.ACTIVE },
     });
 
     logger.info(`Refreshing ${audiences.length} audiences`);
@@ -286,7 +299,7 @@ export class SegmentationEngine {
       } catch (error) {
         logger.error('Failed to refresh audience', {
           audienceId: audience.id,
-          error
+          error,
         });
       }
     }

@@ -2,7 +2,7 @@
 import { PrismaClient } from '@prisma/client';
 
 // Mock logger to prevent console spam during tests
-jest.mock('./src/utils/logger', () => ({
+jest.mock('../src/utils/logger', () => ({
     logger: {
         info: jest.fn(),
         error: jest.fn(),

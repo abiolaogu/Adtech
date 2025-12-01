@@ -11,7 +11,7 @@ export class PredictiveAnalytics {
   private static instance: PredictiveAnalytics;
   private redis = getRedisClient();
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): PredictiveAnalytics {
     if (!PredictiveAnalytics.instance) {
@@ -33,17 +33,17 @@ export class PredictiveAnalytics {
       }
 
       // Extract metrics
-      const impressions = historicalData.map(d => d.impressions);
-      const clicks = historicalData.map(d => d.clicks);
-      const conversions = historicalData.map(d => d.conversions);
-      const spend = historicalData.map(d => d.spend);
+      const impressions = historicalData.map((d) => d.impressions);
+      const clicks = historicalData.map((d) => d.clicks);
+      const conversions = historicalData.map((d) => d.conversions);
+      const spend = historicalData.map((d) => d.spend);
 
       // Predict using exponential smoothing
       const predictions = {
         impressions: this.exponentialSmoothing(impressions, days, 0.3),
         clicks: this.exponentialSmoothing(clicks, days, 0.3),
         conversions: this.exponentialSmoothing(conversions, days, 0.3),
-        spend: this.exponentialSmoothing(spend, days, 0.3)
+        spend: this.exponentialSmoothing(spend, days, 0.3),
       };
 
       // Calculate confidence intervals
@@ -61,18 +61,13 @@ export class PredictiveAnalytics {
         confidence,
         trends,
         insights,
-        generatedAt: new Date()
+        generatedAt: new Date(),
       };
 
       // Cache predictions
-      await this.redis.setex(
-        `predictions:campaign:${campaignId}`,
-        3600,
-        JSON.stringify(result)
-      );
+      await this.redis.setex(`predictions:campaign:${campaignId}`, 3600, JSON.stringify(result));
 
       return result;
-
     } catch (error) {
       logger.error('Prediction failed', { campaignId, error });
       throw error;
@@ -84,7 +79,7 @@ export class PredictiveAnalytics {
    */
   async predictBudgetDepletion(campaignId: string) {
     const campaign = await prisma.campaign.findUnique({
-      where: { id: campaignId }
+      where: { id: campaignId },
     });
 
     if (!campaign) {
@@ -96,20 +91,21 @@ export class PredictiveAnalytics {
       return {
         depleted: true,
         daysRemaining: 0,
-        depletionDate: new Date()
+        depletionDate: new Date(),
       };
     }
 
     // Get historical spend rate
     const historicalData = await this.getCampaignTimeSeriesData(campaignId, 14);
-    const avgDailySpend = historicalData.reduce((sum, d) => sum + d.spend, 0) / historicalData.length;
+    const avgDailySpend =
+      historicalData.reduce((sum, d) => sum + d.spend, 0) / historicalData.length;
 
     if (avgDailySpend === 0) {
       return {
         depleted: false,
         daysRemaining: Infinity,
         depletionDate: null,
-        avgDailySpend: 0
+        avgDailySpend: 0,
       };
     }
 
@@ -131,7 +127,7 @@ export class PredictiveAnalytics {
       avgDailySpend,
       remainingBudget,
       pacingStatus,
-      recommendation: this.getPacingRecommendation(pacingStatus)
+      recommendation: this.getPacingRecommendation(pacingStatus),
     };
   }
 
@@ -144,25 +140,25 @@ export class PredictiveAnalytics {
       where: {
         inventoryId,
         slotTime: {
-          gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) // Last 90 days
-        }
+          gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // Last 90 days
+        },
       },
-      orderBy: { slotTime: 'asc' }
+      orderBy: { slotTime: 'asc' },
     });
 
     // Group by day
     const dailyBookings = this.groupByDay(slots);
 
     // Calculate booking rate trend
-    const bookingRates = dailyBookings.map(d => ({
+    const bookingRates = dailyBookings.map((d) => ({
       date: d.date,
-      bookedRate: d.booked / (d.booked + d.available)
+      bookedRate: d.booked / (d.booked + d.available),
     }));
 
     // Forecast using linear regression
     const forecast = this.linearRegression(
       bookingRates.map((_, i) => i),
-      bookingRates.map(d => d.bookedRate),
+      bookingRates.map((d) => d.bookedRate),
       days
     );
 
@@ -174,10 +170,10 @@ export class PredictiveAnalytics {
       forecast: forecast.map((rate, i) => ({
         day: i + 1,
         expectedBookingRate: Math.min(Math.max(rate, 0), 1),
-        confidence: this.calculateForecastConfidence(i, bookingRates.length)
+        confidence: this.calculateForecastConfidence(i, bookingRates.length),
       })),
       seasonality,
-      recommendations: this.getInventoryRecommendations(forecast, seasonality)
+      recommendations: this.getInventoryRecommendations(forecast, seasonality),
     };
   }
 
@@ -190,25 +186,25 @@ export class PredictiveAnalytics {
       include: {
         events: {
           where: {
-            eventType: 'purchase'
+            eventType: 'purchase',
           },
-          orderBy: { timestamp: 'asc' }
-        }
-      }
+          orderBy: { timestamp: 'asc' },
+        },
+      },
     });
 
     if (!customer || customer.events.length === 0) {
       return {
         customerId,
         predictedLTV: 0,
-        confidence: 'low'
+        confidence: 'low',
       };
     }
 
     // Calculate historical metrics
     const purchases = customer.events;
     const totalRevenue = purchases.reduce((sum: number, e: any) => {
-      const props = e.properties as any;
+      const props = e.properties;
       return sum + (props?.value || 0);
     }, 0);
 
@@ -236,7 +232,7 @@ export class PredictiveAnalytics {
       purchaseFrequency: Math.round(purchaseFrequency * 100) / 100,
       churnProbability: Math.round(churnProbability * 100) / 100,
       confidence: this.getLTVConfidence(purchases.length, customerAgeDays),
-      segment: this.getCustomerSegment(predictedLTV)
+      segment: this.getCustomerSegment(predictedLTV),
     };
   }
 
@@ -283,15 +279,15 @@ export class PredictiveAnalytics {
    * Calculate confidence intervals
    */
   private calculateConfidenceIntervals(historical: any[], predictions: any) {
-    const variance = this.calculateVariance(historical.map(d => d.impressions));
+    const variance = this.calculateVariance(historical.map((d) => d.impressions));
     const stdDev = Math.sqrt(variance);
 
     return {
       impressions: {
         lower: predictions.impressions.map((v: number) => Math.max(0, v - 1.96 * stdDev)),
-        upper: predictions.impressions.map((v: number) => v + 1.96 * stdDev)
+        upper: predictions.impressions.map((v: number) => v + 1.96 * stdDev),
       },
-      confidenceLevel: '95%'
+      confidenceLevel: '95%',
     };
   }
 
@@ -299,13 +295,13 @@ export class PredictiveAnalytics {
    * Detect trends in time series data
    */
   private detectTrends(data: any[]) {
-    const values = data.map(d => d.impressions);
+    const values = data.map((d) => d.impressions);
     const trend = (values[values.length - 1] - values[0]) / values.length;
 
     return {
       direction: trend > 0 ? 'increasing' : trend < 0 ? 'decreasing' : 'stable',
       strength: Math.abs(trend) > 100 ? 'strong' : Math.abs(trend) > 10 ? 'moderate' : 'weak',
-      trend: trend
+      trend: trend,
     };
   }
 
@@ -316,14 +312,17 @@ export class PredictiveAnalytics {
     const insights: string[] = [];
 
     if (trends.direction === 'increasing' && trends.strength === 'strong') {
-      insights.push('📈 Campaign momentum is strong. Consider increasing budget to capitalize on growth.');
+      insights.push(
+        '📈 Campaign momentum is strong. Consider increasing budget to capitalize on growth.'
+      );
     }
 
     if (trends.direction === 'decreasing') {
       insights.push('📉 Performance declining. Review targeting and creatives for optimization.');
     }
 
-    const avgCTR = historical.reduce((sum, d) => sum + (d.clicks / d.impressions), 0) / historical.length;
+    const avgCTR =
+      historical.reduce((sum, d) => sum + d.clicks / d.impressions, 0) / historical.length;
     if (avgCTR < 0.01) {
       insights.push('⚠️ CTR below industry average. A/B test new creatives.');
     }
@@ -337,7 +336,7 @@ export class PredictiveAnalytics {
   private async getCampaignTimeSeriesData(campaignId: string, days: number) {
     // Simplified - in production, query from data warehouse
     const campaign = await prisma.campaign.findUnique({
-      where: { id: campaignId }
+      where: { id: campaignId },
     });
 
     if (!campaign) return [];
@@ -350,7 +349,7 @@ export class PredictiveAnalytics {
         impressions: Math.floor(campaign.impressions / days),
         clicks: Math.floor(campaign.clicks / days),
         conversions: Math.floor(campaign.conversions / days),
-        spend: campaign.spent / days
+        spend: campaign.spent / days,
       });
     }
     return data;
@@ -381,7 +380,7 @@ export class PredictiveAnalytics {
 
   private groupByDay(slots: any[]) {
     const grouped = new Map();
-    slots.forEach(slot => {
+    slots.forEach((slot) => {
       const day = slot.slotTime.toISOString().split('T')[0];
       if (!grouped.has(day)) {
         grouped.set(day, { date: day, booked: 0, available: 0 });
@@ -401,7 +400,7 @@ export class PredictiveAnalytics {
   private getInventoryRecommendations(forecast: number[], seasonality: string): string[] {
     return [
       'Optimize pricing based on demand forecast',
-      'Adjust inventory allocation for peak periods'
+      'Adjust inventory allocation for peak periods',
     ];
   }
 
@@ -426,6 +425,6 @@ export class PredictiveAnalytics {
   }
 
   private calculateForecastConfidence(period: number, dataPoints: number): number {
-    return Math.max(0.5, 1 - (period / dataPoints));
+    return Math.max(0.5, 1 - period / dataPoints);
   }
 }

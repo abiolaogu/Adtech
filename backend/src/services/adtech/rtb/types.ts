@@ -7,6 +7,8 @@ export interface BidRequest {
   country: string;
   floorPrice: number;
   userContext?: Record<string, any>;
+  userId?: string;
+  user?: Record<string, any>;
   timestamp: Date;
 }
 

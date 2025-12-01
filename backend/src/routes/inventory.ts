@@ -26,14 +26,11 @@ router.get('/available', async (req, res, next) => {
   try {
     const { type, minSlots, maxPrice, publisherId } = req.query;
 
-    const inventory = await inventoryManager.getAvailableInventory(
-      type as InventoryType,
-      {
-        minSlots: minSlots ? parseInt(minSlots as string) : undefined,
-        maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
-        publisherId: publisherId as string
-      }
-    );
+    const inventory = await inventoryManager.getAvailableInventory(type as InventoryType, {
+      minSlots: minSlots ? parseInt(minSlots as string) : undefined,
+      maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
+      publisherId: publisherId as string,
+    });
 
     res.json(inventory);
   } catch (error) {
@@ -51,7 +48,7 @@ router.post('/reserve', async (req, res, next) => {
 
     if (!slotId || !campaignId || !price) {
       return res.status(400).json({
-        error: 'Missing required parameters: slotId, campaignId, price'
+        error: 'Missing required parameters: slotId, campaignId, price',
       });
     }
 
@@ -72,7 +69,7 @@ router.get('/:id/forecast', async (req, res, next) => {
 
     if (!startDate || !endDate) {
       return res.status(400).json({
-        error: 'Missing required parameters: startDate, endDate'
+        error: 'Missing required parameters: startDate, endDate',
       });
     }
 
@@ -111,7 +108,7 @@ router.get('/:id/analytics', async (req, res, next) => {
 
     if (!startDate || !endDate) {
       return res.status(400).json({
-        error: 'Missing required parameters: startDate, endDate'
+        error: 'Missing required parameters: startDate, endDate',
       });
     }
 

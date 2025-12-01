@@ -10,7 +10,7 @@ export class AIBidOptimizer {
   private static instance: AIBidOptimizer;
   private redis = getRedisClient();
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): AIBidOptimizer {
     if (!AIBidOptimizer.instance) {
@@ -49,11 +49,10 @@ export class AIBidOptimizer {
 
       logger.debug('AI bid prediction', {
         campaignId: params.campaignId,
-        predicted: optimizedBid
+        predicted: optimizedBid,
       });
 
       return optimizedBid;
-
     } catch (error) {
       logger.error('AI bid prediction failed', { error });
       return params.floorPrice;
@@ -70,7 +69,7 @@ export class AIBidOptimizer {
     }
 
     const campaign = await prisma.campaign.findUnique({
-      where: { id: campaignId }
+      where: { id: campaignId },
     });
 
     if (!campaign) {
@@ -83,14 +82,10 @@ export class AIBidOptimizer {
       avgCpm: campaign.impressions > 0 ? (campaign.spent / campaign.impressions) * 1000 : 0,
       budgetUtilization: campaign.spent / campaign.budget,
       maxBid: campaign.maxBid || 5,
-      competitionLevel: 0.5
+      competitionLevel: 0.5,
     };
 
-    await this.redis.setex(
-      `campaign:stats:${campaignId}`,
-      300,
-      JSON.stringify(stats)
-    );
+    await this.redis.setex(`campaign:stats:${campaignId}`, 300, JSON.stringify(stats));
 
     return stats;
   }
@@ -128,7 +123,7 @@ export class AIBidOptimizer {
       avgCpm: 2.0,
       budgetUtilization: 0,
       maxBid: 5,
-      competitionLevel: 0.5
+      competitionLevel: 0.5,
     };
   }
 
@@ -147,11 +142,7 @@ export class AIBidOptimizer {
     for (let i = 0; i < params.strategies.length; i++) {
       cumulative += params.trafficSplit[i];
       if (random <= cumulative) {
-        await this.redis.hincrby(
-          `experiment:${params.campaignId}`,
-          params.strategies[i],
-          1
-        );
+        await this.redis.hincrby(`experiment:${params.campaignId}`, params.strategies[i], 1);
         return params.strategies[i];
       }
     }

@@ -156,7 +156,7 @@ export class AdServer {
         userAgent: request.userAgent,
         deviceId: request.userId,
         placementId: request.placementId,
-        referrer: request.pageUrl
+        referrer: request.pageUrl,
       });
 
       if (!fraudCheck.allowed) {
@@ -185,7 +185,6 @@ export class AdServer {
 
       // 6. No fill - return house ad or passback
       return this.getHouseAd(request, startTime);
-
     } catch (error) {
       logger.error('Ad serving error:', error);
       throw error;
@@ -200,10 +199,11 @@ export class AdServer {
     const campaigns = await this.getActiveCampaigns();
 
     // Filter by targeting
-    const eligible = campaigns.filter(campaign =>
-      this.matchesTargeting(campaign, request) &&
-      this.hasRemainingBudget(campaign) &&
-      this.isWithinSchedule(campaign)
+    const eligible = campaigns.filter(
+      (campaign) =>
+        this.matchesTargeting(campaign, request) &&
+        this.hasRemainingBudget(campaign) &&
+        this.isWithinSchedule(campaign)
     );
 
     if (eligible.length === 0) return null;
@@ -222,7 +222,7 @@ export class AdServer {
             type: 'direct',
             campaign,
             creative,
-            price: campaign.cpm
+            price: campaign.cpm,
           };
         }
       }
@@ -239,7 +239,7 @@ export class AdServer {
 
     // Get active SSP partners
     const partners = await prisma.partner.findMany({
-      where: { type: 'SSP', active: true }
+      where: { type: 'SSP', active: true },
     });
 
     if (partners.length === 0) return null;
@@ -252,10 +252,7 @@ export class AdServer {
       this.simulateHeaderBid(partner, request, timeout)
     );
 
-    const bids = await Promise.race([
-      Promise.all(bidPromises),
-      this.delay(timeout).then(() => [])
-    ]);
+    const bids = await Promise.race([Promise.all(bidPromises), this.delay(timeout).then(() => [])]);
 
     // Find highest bid
     const validBids = bids.filter((b: any) => b && b.price > 0);
@@ -267,7 +264,7 @@ export class AdServer {
       type: 'header_bidding',
       bidder: validBids[0].bidder,
       price: validBids[0].price,
-      creative: validBids[0].creative
+      creative: validBids[0].creative,
     };
   }
 
@@ -288,8 +285,8 @@ export class AdServer {
           type: 'html',
           content: `<div>Header Bid Ad from ${partner.name}</div>`,
           width: 300,
-          height: 250
-        }
+          height: 250,
+        },
       };
     } catch (error) {
       return null;
@@ -323,7 +320,7 @@ export class AdServer {
         pageViews: 0,
         sessionDepth: 0,
         timeOnSite: 0,
-        previousPurchases: 0
+        previousPurchases: 0,
       },
       {
         campaignId: 'programmatic',
@@ -336,7 +333,7 @@ export class AdServer {
         creativeSizes: request.sizes,
         geoTargeting: [],
         startDate: new Date(),
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       }
     );
 
@@ -349,8 +346,8 @@ export class AdServer {
         type: 'html',
         content: '<div>Programmatic Ad</div>',
         width: 300,
-        height: 250
-      }
+        height: 250,
+      },
     };
   }
 
@@ -368,7 +365,7 @@ export class AdServer {
         type: 'html',
         content: '<div>House Ad</div>',
         width: 300,
-        height: 250
+        height: 250,
       },
       trackingPixels: [],
       viewabilityTrackers: [],
@@ -376,7 +373,7 @@ export class AdServer {
       advertiserId: 'internal',
       price: 0,
       currency: 'USD',
-      responseTime: Date.now() - startTime
+      responseTime: Date.now() - startTime,
     };
   }
 
@@ -396,33 +393,30 @@ export class AdServer {
         type: ad.creative.type || 'html',
         content: ad.creative.content,
         width: ad.creative.width || 300,
-        height: ad.creative.height || 250
+        height: ad.creative.height || 250,
       },
-      trackingPixels: [
-        `/pixel/view/${adId}`,
-        `/pixel/viewability/${adId}`
-      ],
-      viewabilityTrackers: [
-        `/viewability/start/${adId}`,
-        `/viewability/complete/${adId}`
-      ],
+      trackingPixels: [`/pixel/view/${adId}`, `/pixel/viewability/${adId}`],
+      viewabilityTrackers: [`/viewability/start/${adId}`, `/viewability/complete/${adId}`],
       campaignId: ad.campaign?.id || 'unknown',
       advertiserId: ad.campaign?.advertiserId || 'unknown',
       price: ad.price || 0,
       currency: 'USD',
       dealId: ad.dealId,
-      responseTime: Date.now() - startTime
+      responseTime: Date.now() - startTime,
     };
   }
 
   /**
    * Track impression
    */
-  async trackImpression(requestId: string, data?: {
-    viewable: boolean;
-    viewTime: number;
-    clickthrough: boolean;
-  }): Promise<void> {
+  async trackImpression(
+    requestId: string,
+    data?: {
+      viewable: boolean;
+      viewTime: number;
+      clickthrough: boolean;
+    }
+  ): Promise<void> {
     // Track in Redis
     await this.redisService.increment('metrics:impressions');
 
@@ -483,17 +477,14 @@ export class AdServer {
           status: 'ACTIVE',
           type: 'SPONSORED', // Assuming 'SPONSORED' maps to direct sales for now
           startDate: { lte: new Date() },
-          OR: [
-            { endDate: null },
-            { endDate: { gte: new Date() } }
-          ]
+          OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
         },
         include: {
           creatives: {
             where: { active: true },
-            include: { creative: true }
-          }
-        }
+            include: { creative: true },
+          },
+        },
       });
 
       // Map to DirectCampaign interface
@@ -509,15 +500,15 @@ export class AdServer {
         endDate: c.endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         impressionGoal: 1000000, // Default
         impressionsPaced: c.impressions,
-        targeting: c.targeting as any,
+        targeting: c.targeting,
         creatives: c.creatives.map((cc: any) => ({
           id: cc.creative.id,
           format: cc.creative.format,
           content: JSON.stringify(cc.creative.content),
-          size: '300x250' // Default if not specified
+          size: '300x250', // Default if not specified
         })),
         cpm: c.maxBid || 5.0,
-        guaranteedDelivery: true
+        guaranteedDelivery: true,
       }));
     });
   }
@@ -582,6 +573,6 @@ export class AdServer {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

@@ -63,4 +63,43 @@ export class RedisService {
   async releaseLock(key: string): Promise<void> {
     await this.redis.del(key);
   }
+  /**
+   * Get a value
+   */
+  async get(key: string): Promise<string | null> {
+    return this.redis.get(key);
+  }
+
+  /**
+   * Set a value with optional TTL
+   */
+  async set(key: string, value: string | object, ttlSeconds?: number): Promise<void> {
+    const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+    if (ttlSeconds) {
+      await this.redis.setex(key, ttlSeconds, stringValue);
+    } else {
+      await this.redis.set(key, stringValue);
+    }
+  }
+
+  /**
+   * Delete a key
+   */
+  async delete(key: string): Promise<number> {
+    return this.redis.del(key);
+  }
+
+  /**
+   * Check if member exists in set
+   */
+  async sismember(key: string, member: string): Promise<number> {
+    return this.redis.sismember(key, member);
+  }
+
+  /**
+   * Set key expiration
+   */
+  async expire(key: string, seconds: number): Promise<number> {
+    return this.redis.expire(key, seconds);
+  }
 }

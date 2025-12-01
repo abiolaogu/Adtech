@@ -5,6 +5,7 @@ import { prisma } from '../../../config/database';
 import { BidRequest, BidResponse, AuctionResult } from './types';
 import { PartnerService } from './PartnerService';
 import { RedisService } from '../../caching/RedisService';
+import { TurbospikeService } from '../../database/TurbospikeService';
 
 /**
  * RTB Engine - Handles real-time bidding auctions
@@ -15,9 +16,10 @@ export class RTBEngine {
   private io?: SocketServer;
   private redisService = RedisService.getInstance();
   private partnerService = PartnerService.getInstance();
+  private turbospikeService = TurbospikeService.getInstance();
   private readonly RTB_TIMEOUT = parseInt(process.env.RTB_TIMEOUT_MS || '100');
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): RTBEngine {
     if (!RTBEngine.instance) {
@@ -39,9 +41,21 @@ export class RTBEngine {
     const auctionId = uuidv4();
     const startTime = Date.now();
 
-    logger.debug('Starting RTB auction', { auctionId, placementId: bidRequest.placementId });
-
     try {
+      // 1. Enrich request with user data from Turbospike (High-Performance KV)
+      let userProfile = null;
+      if (bidRequest.userId) {
+        userProfile = await this.turbospikeService.get('users', bidRequest.userId);
+        if (userProfile) {
+          logger.debug(
+            `Enriched bid request with Turbospike profile for user ${bidRequest.userId}`
+          );
+          bidRequest.user = { ...bidRequest.user, ...userProfile };
+        }
+      }
+
+      logger.debug('Starting RTB auction', { auctionId, placementId: bidRequest.placementId });
+
       // 1. Find eligible internal campaigns
       const internalCampaigns = await this.findEligibleCampaigns(bidRequest);
 
@@ -54,27 +68,28 @@ export class RTBEngine {
       }
 
       // 3. Request bids from Internal Campaigns and External DSPs
-      const internalBidPromises = internalCampaigns.map(campaign =>
+      const internalBidPromises = internalCampaigns.map((campaign) =>
         this.requestInternalBid(campaign, bidRequest, auctionId)
       );
 
-      const externalBidPromises = externalDSPs.map(dsp =>
+      const externalBidPromises = externalDSPs.map((dsp: any) =>
         this.partnerService.requestBidFromDSP(dsp, bidRequest)
       );
 
       // 4. Wait for bids with timeout
       const allPromises = [...internalBidPromises, ...externalBidPromises];
 
-      const results = await Promise.race([
+      const results = (await Promise.race([
         Promise.allSettled(allPromises),
-        this.timeout(this.RTB_TIMEOUT)
-      ]) as PromiseSettledResult<BidResponse | null>[];
+        this.timeout(this.RTB_TIMEOUT),
+      ])) as PromiseSettledResult<BidResponse | null>[];
 
       const validBids = results
-        .filter((result): result is PromiseFulfilledResult<BidResponse> =>
-          result.status === 'fulfilled' && result.value !== null && result.value.bidPrice > 0
+        .filter(
+          (result): result is PromiseFulfilledResult<BidResponse> =>
+            result.status === 'fulfilled' && result.value !== null && result.value.bidPrice > 0
         )
-        .map(result => result.value);
+        .map((result) => result.value);
 
       if (validBids.length === 0) {
         logger.debug('No valid bids received', { auctionId });
@@ -100,11 +115,10 @@ export class RTBEngine {
         auctionId,
         winner: auctionResult.winningBid?.campaignId,
         price: auctionResult.clearingPrice,
-        duration: `${duration}ms`
+        duration: `${duration}ms`,
       });
 
       return auctionResult;
-
     } catch (error) {
       logger.error('Auction failed', { auctionId, error });
       return this.createNoFillResult(auctionId, bidRequest);
@@ -126,18 +140,15 @@ export class RTBEngine {
         where: {
           status: 'ACTIVE',
           startDate: { lte: now },
-          OR: [
-            { endDate: null },
-            { endDate: { gte: now } }
-          ]
+          OR: [{ endDate: null }, { endDate: { gte: now } }],
         },
         include: {
           advertiser: true,
           creatives: {
             where: { active: true },
-            include: { creative: true }
-          }
-        }
+            include: { creative: true },
+          },
+        },
       });
     });
 
@@ -148,7 +159,11 @@ export class RTBEngine {
     for (const campaign of campaigns) {
       if (this.matchesTargeting(campaign, bidRequest)) {
         // Check real-time budget
-        const spent = await this.redisService.getOrSet(`campaign:${campaign.id}:spent`, 300, async () => campaign.spent);
+        const spent = await this.redisService.getOrSet(
+          `campaign:${campaign.id}:spent`,
+          300,
+          async () => campaign.spent
+        );
         if (spent < campaign.budget) {
           eligibleCampaigns.push(campaign);
         }
@@ -162,20 +177,32 @@ export class RTBEngine {
    * Check if bid request matches campaign targeting
    */
   private matchesTargeting(campaign: any, bidRequest: BidRequest): boolean {
-    const targeting = campaign.targeting as any;
+    const targeting = campaign.targeting;
 
     // Device targeting
-    if (targeting.devices && targeting.devices.length > 0 && !targeting.devices.includes(bidRequest.deviceType)) {
+    if (
+      targeting.devices &&
+      targeting.devices.length > 0 &&
+      !targeting.devices.includes(bidRequest.deviceType)
+    ) {
       return false;
     }
 
     // Geo targeting
-    if (targeting.countries && targeting.countries.length > 0 && !targeting.countries.includes(bidRequest.country)) {
+    if (
+      targeting.countries &&
+      targeting.countries.length > 0 &&
+      !targeting.countries.includes(bidRequest.country)
+    ) {
       return false;
     }
 
     // Inventory type targeting
-    if (targeting.inventoryTypes && targeting.inventoryTypes.length > 0 && !targeting.inventoryTypes.includes(bidRequest.inventoryType)) {
+    if (
+      targeting.inventoryTypes &&
+      targeting.inventoryTypes.length > 0 &&
+      !targeting.inventoryTypes.includes(bidRequest.inventoryType)
+    ) {
       return false;
     }
 
@@ -222,8 +249,8 @@ export class RTBEngine {
       metadata: {
         bidStrategy: campaign.bidStrategy,
         originalBid: campaign.maxBid,
-        pacingFactor
-      }
+        pacingFactor,
+      },
     };
   }
 
@@ -233,14 +260,20 @@ export class RTBEngine {
   private async calculatePacingFactor(campaign: any): Promise<number> {
     const now = Date.now();
     const start = new Date(campaign.startDate).getTime();
-    const end = campaign.endDate ? new Date(campaign.endDate).getTime() : now + 30 * 24 * 60 * 60 * 1000;
+    const end = campaign.endDate
+      ? new Date(campaign.endDate).getTime()
+      : now + 30 * 24 * 60 * 60 * 1000;
 
     const totalDuration = end - start;
     const elapsed = now - start;
     const progress = elapsed / totalDuration;
 
     // Get real-time spend from Redis
-    const currentSpend = await this.redisService.getOrSet(`campaign:${campaign.id}:spent`, 60, async () => campaign.spent);
+    const currentSpend = await this.redisService.getOrSet(
+      `campaign:${campaign.id}:spent`,
+      60,
+      async () => campaign.spent
+    );
     const spendProgress = currentSpend / campaign.budget;
 
     // If spending too fast, reduce pacing
@@ -278,7 +311,7 @@ export class RTBEngine {
       clearingPrice,
       allBids: bids,
       bidRequest,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
   }
 
@@ -292,7 +325,7 @@ export class RTBEngine {
       clearingPrice: 0,
       allBids: [],
       bidRequest,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
   }
 
@@ -312,8 +345,8 @@ export class RTBEngine {
           floorPrice: result.bidRequest.floorPrice,
           won: true,
           userContext: result.bidRequest.userContext || {},
-          deviceType: result.bidRequest.deviceType
-        }
+          deviceType: result.bidRequest.deviceType,
+        },
       });
 
       // Update campaign pending spend in Redis
@@ -340,7 +373,7 @@ export class RTBEngine {
       auctionId: result.auctionId,
       won: !!result.winningBid,
       price: result.clearingPrice,
-      campaignId: result.winningBid?.campaignId
+      campaignId: result.winningBid?.campaignId,
     });
   }
 
@@ -348,6 +381,6 @@ export class RTBEngine {
    * Timeout helper
    */
   private timeout(ms: number): Promise<never[]> {
-    return new Promise(resolve => setTimeout(() => resolve([]), ms));
+    return new Promise((resolve) => setTimeout(() => resolve([]), ms));
   }
 }

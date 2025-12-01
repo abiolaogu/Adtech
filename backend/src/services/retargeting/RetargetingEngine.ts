@@ -55,7 +55,14 @@ interface UserFootprint {
 interface Touchpoint {
   id: string;
   timestamp: Date;
-  type: 'pageview' | 'product_view' | 'add_to_cart' | 'checkout_start' | 'purchase' | 'email_click' | 'ad_click';
+  type:
+    | 'pageview'
+    | 'product_view'
+    | 'add_to_cart'
+    | 'checkout_start'
+    | 'purchase'
+    | 'email_click'
+    | 'ad_click';
   device: string;
   channel: string;
   url?: string;
@@ -157,12 +164,12 @@ export class RetargetingEngine {
 
     // Aggregate behavior across devices
     const aggregatedBehavior = {
-      totalPageViews: touchpoints.filter(t => t.type === 'pageview').length,
-      uniquePages: new Set(touchpoints.filter(t => t.url).map(t => t.url!)),
+      totalPageViews: touchpoints.filter((t) => t.type === 'pageview').length,
+      uniquePages: new Set(touchpoints.filter((t) => t.url).map((t) => t.url!)),
       sessionCount: profile.behavior.sessions,
       totalTimeOnSite: profile.behavior.totalTimeOnSite,
       devices: new Set([...profile.identities.deviceIds, ...profile.identities.cookies]),
-      locations: new Set<string>() // TODO: Extract from touchpoints
+      locations: new Set<string>(), // TODO: Extract from touchpoints
     };
 
     // Detect intent signals
@@ -185,7 +192,7 @@ export class RetargetingEngine {
       aggregatedBehavior,
       intentSignals,
       funnelStage,
-      eligibility
+      eligibility,
     };
   }
 
@@ -216,7 +223,7 @@ export class RetargetingEngine {
 
     const fullTouchpoint: Touchpoint = {
       id: touchpointId,
-      ...touchpoint
+      ...touchpoint,
     };
 
     // Store touchpoint
@@ -232,7 +239,7 @@ export class RetargetingEngine {
       url: touchpoint.url,
       productId: touchpoint.productId,
       value: touchpoint.value,
-      metadata: touchpoint.metadata
+      metadata: touchpoint.metadata,
     });
   }
 
@@ -243,9 +250,9 @@ export class RetargetingEngine {
     const signals: IntentSignal[] = [];
 
     // High intent: Product view + cart + checkout
-    const productViews = touchpoints.filter(t => t.type === 'product_view');
-    const cartAdds = touchpoints.filter(t => t.type === 'add_to_cart');
-    const checkoutStarts = touchpoints.filter(t => t.type === 'checkout_start');
+    const productViews = touchpoints.filter((t) => t.type === 'product_view');
+    const cartAdds = touchpoints.filter((t) => t.type === 'add_to_cart');
+    const checkoutStarts = touchpoints.filter((t) => t.type === 'checkout_start');
 
     if (checkoutStarts.length > 0 && productViews.length > 0) {
       signals.push({
@@ -253,7 +260,7 @@ export class RetargetingEngine {
         category: 'purchase_intent',
         score: 0.95,
         source: 'behavioral',
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     } else if (cartAdds.length > 0) {
       signals.push({
@@ -261,7 +268,7 @@ export class RetargetingEngine {
         category: 'cart_abandonment',
         score: 0.85,
         source: 'behavioral',
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     } else if (productViews.length >= 3) {
       signals.push({
@@ -269,34 +276,36 @@ export class RetargetingEngine {
         category: 'product_research',
         score: 0.65,
         source: 'behavioral',
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     }
 
     // Time-based signals
     const recentTouchpoints = touchpoints.filter(
-      t => Date.now() - new Date(t.timestamp).getTime() < 24 * 60 * 60 * 1000
+      (t) => Date.now() - new Date(t.timestamp).getTime() < 24 * 60 * 60 * 1000
     );
 
     if (recentTouchpoints.length >= 5) {
       signals.push({
         type: 'high_intent',
         category: 'high_engagement',
-        score: 0.80,
+        score: 0.8,
         source: 'behavioral',
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     }
 
     // 3rd party intent data
     if (profile.interests.intentSignals.length > 0) {
-      signals.push(...profile.interests.intentSignals.map((is: any) => ({
-        type: is.score > 0.7 ? 'high_intent' : 'medium_intent' as const,
-        category: is.category,
-        score: is.score,
-        source: '3rd_party' as const,
-        timestamp: new Date(is.timestamp)
-      })));
+      signals.push(
+        ...profile.interests.intentSignals.map((is: any) => ({
+          type: is.score > 0.7 ? 'high_intent' : ('medium_intent' as const),
+          category: is.category,
+          score: is.score,
+          source: '3rd_party' as const,
+          timestamp: new Date(is.timestamp),
+        }))
+      );
     }
 
     return signals;
@@ -309,10 +318,10 @@ export class RetargetingEngine {
     touchpoints: Touchpoint[],
     profile: any
   ): 'awareness' | 'consideration' | 'intent' | 'purchase' | 'loyalty' {
-    const purchases = touchpoints.filter(t => t.type === 'purchase');
-    const checkouts = touchpoints.filter(t => t.type === 'checkout_start');
-    const cartAdds = touchpoints.filter(t => t.type === 'add_to_cart');
-    const productViews = touchpoints.filter(t => t.type === 'product_view');
+    const purchases = touchpoints.filter((t) => t.type === 'purchase');
+    const checkouts = touchpoints.filter((t) => t.type === 'checkout_start');
+    const cartAdds = touchpoints.filter((t) => t.type === 'add_to_cart');
+    const productViews = touchpoints.filter((t) => t.type === 'product_view');
 
     if (purchases.length > 0) {
       // Has purchased - loyalty stage
@@ -345,7 +354,8 @@ export class RetargetingEngine {
 
     // Check recency (must have activity in last 30 days)
     const lastTouchpoint = touchpoints[touchpoints.length - 1];
-    const daysSinceLastTouch = (Date.now() - new Date(lastTouchpoint.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+    const daysSinceLastTouch =
+      (Date.now() - new Date(lastTouchpoint.timestamp).getTime()) / (1000 * 60 * 60 * 24);
 
     if (daysSinceLastTouch > 30) {
       eligible = false;
@@ -362,38 +372,44 @@ export class RetargetingEngine {
     }
 
     // Determine optimal channel based on device usage
-    const deviceTouchpoints = touchpoints.reduce((acc, t) => {
-      acc[t.device] = (acc[t.device] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const deviceTouchpoints = touchpoints.reduce(
+      (acc, t) => {
+        acc[t.device] = (acc[t.device] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
-    const preferredDevice = Object.entries(deviceTouchpoints).sort((a, b) => b[1] - a[1])[0]?.[0] || 'mobile';
+    const preferredDevice =
+      Object.entries(deviceTouchpoints).sort((a, b) => b[1] - a[1])[0]?.[0] || 'mobile';
     const optimalChannel = preferredDevice === 'mobile' ? 'mobile_web' : 'desktop_display';
 
     // Determine recommended creative based on funnel stage
     const creativeMap: Record<string, string> = {
-      'awareness': 'brand_awareness_video',
-      'consideration': 'product_showcase_carousel',
-      'intent': 'limited_time_offer_cta',
-      'purchase': 'cart_abandonment_discount',
-      'loyalty': 'upsell_complementary_products'
+      awareness: 'brand_awareness_video',
+      consideration: 'product_showcase_carousel',
+      intent: 'limited_time_offer_cta',
+      purchase: 'cart_abandonment_discount',
+      loyalty: 'upsell_complementary_products',
     };
 
     const recommendedCreative = creativeMap[funnelStage];
 
     // Calculate suggested bid based on intent
-    const highIntentSignals = intentSignals.filter(s => s.type === 'high_intent');
-    const avgIntentScore = intentSignals.reduce((sum, s) => sum + s.score, 0) / intentSignals.length || 0;
+    const highIntentSignals = intentSignals.filter((s) => s.type === 'high_intent');
+    const avgIntentScore =
+      intentSignals.reduce((sum, s) => sum + s.score, 0) / intentSignals.length || 0;
 
     const baseBid = 2.0; // $2 CPM base
     const intentMultiplier = 1 + avgIntentScore;
-    const funnelMultiplier = {
-      awareness: 0.8,
-      consideration: 1.0,
-      intent: 1.5,
-      purchase: 2.0,
-      loyalty: 1.2
-    }[funnelStage] || 1.0;
+    const funnelMultiplier =
+      {
+        awareness: 0.8,
+        consideration: 1.0,
+        intent: 1.5,
+        purchase: 2.0,
+        loyalty: 1.2,
+      }[funnelStage] || 1.0;
 
     const suggestedBid = baseBid * intentMultiplier * funnelMultiplier;
 
@@ -402,7 +418,7 @@ export class RetargetingEngine {
       reasons,
       optimalChannel,
       recommendedCreative,
-      suggestedBid
+      suggestedBid,
     };
   }
 
@@ -414,12 +430,12 @@ export class RetargetingEngine {
     const inventoryOptions = await this.dmp.getCheapestInventoryForUser(unifiedId);
 
     // Enrich with quality scores
-    const enrichedOptions: InventoryOption[] = inventoryOptions.map(option => ({
+    const enrichedOptions: InventoryOption[] = inventoryOptions.map((option) => ({
       exchange: option.exchange,
       cpm: option.estimatedCPM,
       reach: 10000, // Estimated reach
       quality: 0.7 + Math.random() * 0.3, // Quality score
-      confidence: 0.8 + Math.random() * 0.2
+      confidence: 0.8 + Math.random() * 0.2,
     }));
 
     // Sort by cost (cheapest first)
@@ -442,8 +458,8 @@ export class RetargetingEngine {
         clicks: 0,
         conversions: 0,
         spend: 0,
-        roi: 0
-      }
+        roi: 0,
+      },
     };
 
     // Store campaign
@@ -471,12 +487,13 @@ export class RetargetingEngine {
     // Get touchpoints to calculate days since last touch
     const touchpoints = await this.getTouchpoints(unifiedId);
     const lastTouchpoint = touchpoints[touchpoints.length - 1];
-    const daysSinceLastTouch = (Date.now() - new Date(lastTouchpoint.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+    const daysSinceLastTouch =
+      (Date.now() - new Date(lastTouchpoint.timestamp).getTime()) / (1000 * 60 * 60 * 24);
 
     // Find next message in sequence
     const nextMessage = campaign.sequence.messages
-      .filter(m => m.order > lastOrder)
-      .find(m => daysSinceLastTouch >= m.daysSinceLastTouch);
+      .filter((m) => m.order > lastOrder)
+      .find((m) => daysSinceLastTouch >= m.daysSinceLastTouch);
 
     if (nextMessage) {
       // Update last shown
@@ -484,7 +501,7 @@ export class RetargetingEngine {
 
       return {
         creative: nextMessage.creative,
-        order: nextMessage.order
+        order: nextMessage.order,
       };
     }
 
@@ -502,7 +519,7 @@ export class RetargetingEngine {
     const periodSeconds = {
       hour: 60 * 60,
       day: 24 * 60 * 60,
-      week: 7 * 24 * 60 * 60
+      week: 7 * 24 * 60 * 60,
     }[cap.perPeriod];
 
     const key = `frequency:${campaignId}:${unifiedId}`;
@@ -563,11 +580,7 @@ export class RetargetingEngine {
           campaign.audience.funnelStages.includes(footprint.funnelStage)
         ) {
           // Check frequency cap
-          const underCap = await this.checkFrequencyCap(
-            campaignId,
-            userId,
-            campaign.frequencyCap
-          );
+          const underCap = await this.checkFrequencyCap(campaignId, userId, campaign.frequencyCap);
 
           if (underCap) {
             eligibleUsers.push(userId);
@@ -605,7 +618,7 @@ export class RetargetingEngine {
     const reasoningParts: string[] = [];
 
     // Adjust based on intent signals
-    const highIntentCount = footprint.intentSignals.filter(s => s.type === 'high_intent').length;
+    const highIntentCount = footprint.intentSignals.filter((s) => s.type === 'high_intent').length;
     if (highIntentCount >= 2) {
       bidPrice *= 1.3;
       reasoningParts.push('High intent signals (+30%)');
@@ -629,7 +642,7 @@ export class RetargetingEngine {
 
     return {
       bidPrice,
-      reasoning: reasoningParts.join('; ')
+      reasoning: reasoningParts.join('; '),
     };
   }
 }

@@ -47,7 +47,7 @@ router.post('/customers/merge', async (req, res, next) => {
 
     if (!primaryId || !secondaryId) {
       return res.status(400).json({
-        error: 'Missing required parameters: primaryId, secondaryId'
+        error: 'Missing required parameters: primaryId, secondaryId',
       });
     }
 

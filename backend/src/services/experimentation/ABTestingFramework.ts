@@ -12,7 +12,7 @@ export class ABTestingFramework {
   private static instance: ABTestingFramework;
   private redis = getRedisClient();
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): ABTestingFramework {
     if (!ABTestingFramework.instance) {
@@ -38,11 +38,14 @@ export class ABTestingFramework {
       id: experimentId,
       name: params.name,
       description: params.description,
-      variants: params.variants.map((v, i) => ({
-        ...v,
-        id: v.id || `variant-${i}`,
-        allocation: v.allocation || 1 / params.variants.length
-      }) as ExperimentVariant),
+      variants: params.variants.map(
+        (v, i) =>
+          ({
+            ...v,
+            id: v.id || `variant-${i}`,
+            allocation: v.allocation || 1 / params.variants.length,
+          }) as ExperimentVariant
+      ),
       targetMetric: params.targetMetric,
       trafficAllocation: params.trafficAllocation,
       algorithm: params.algorithm || 'thompson',
@@ -52,8 +55,8 @@ export class ABTestingFramework {
       endedAt: null,
       results: {
         totalSamples: 0,
-        variantStats: {}
-      }
+        variantStats: {},
+      },
     };
 
     // Store experiment
@@ -83,7 +86,7 @@ export class ABTestingFramework {
       // Return control if experiment not active
       return {
         variantId: 'control',
-        variant: { control: true }
+        variant: { control: true },
       };
     }
 
@@ -97,7 +100,7 @@ export class ABTestingFramework {
     if (Math.random() > experiment.trafficAllocation) {
       return {
         variantId: 'control',
-        variant: { control: true }
+        variant: { control: true },
       };
     }
 
@@ -114,7 +117,7 @@ export class ABTestingFramework {
         variantId = this.uniformSampling(experiment);
     }
 
-    const variant = experiment.variants.find(v => v.id === variantId);
+    const variant = experiment.variants.find((v) => v.id === variantId);
 
     // Store assignment
     await this.storeAssignment(experimentId, userId, variantId);
@@ -126,18 +129,14 @@ export class ABTestingFramework {
 
     return {
       variantId,
-      variant: variant?.config || {}
+      variant: variant?.config || {},
     };
   }
 
   /**
    * Track conversion/goal for A/B test
    */
-  async trackConversion(
-    experimentId: string,
-    userId: string,
-    value?: number
-  ) {
+  async trackConversion(experimentId: string, userId: string, value?: number) {
     const assignment = await this.getUserAssignment(experimentId, userId);
     if (!assignment) {
       logger.warn('No assignment found for conversion', { experimentId, userId });
@@ -151,7 +150,7 @@ export class ABTestingFramework {
       experimentId,
       userId,
       variant: assignment.variantId,
-      value
+      value,
     });
   }
 
@@ -245,7 +244,10 @@ export class ABTestingFramework {
 
       if (v > 0) {
         const u = Math.random();
-        if (u < 1 - 0.0331 * Math.pow(x, 4) || Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) {
+        if (
+          u < 1 - 0.0331 * Math.pow(x, 4) ||
+          Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))
+        ) {
           return d * v;
         }
       }
@@ -285,7 +287,7 @@ export class ABTestingFramework {
           conversions: stats.conversions,
           conversionRate: (conversionRate * 100).toFixed(2) + '%',
           avgValue,
-          confidence: this.calculateConfidence(stats.impressions)
+          confidence: this.calculateConfidence(stats.impressions),
         };
       })
     );
@@ -304,12 +306,12 @@ export class ABTestingFramework {
         startedAt: experiment.startedAt,
         duration: experiment.startedAt
           ? Math.ceil((Date.now() - experiment.startedAt.getTime()) / (1000 * 60 * 60 * 24))
-          : 0
+          : 0,
       },
       variants: variantResults,
       significance,
       winner,
-      recommendation: this.getRecommendation(variantResults, significance, winner)
+      recommendation: this.getRecommendation(variantResults, significance, winner),
     };
   }
 
@@ -356,8 +358,9 @@ export class ABTestingFramework {
    */
   private normalCDF(z: number): number {
     const t = 1 / (1 + 0.2316419 * Math.abs(z));
-    const d = 0.3989423 * Math.exp(-z * z / 2);
-    const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    const d = 0.3989423 * Math.exp((-z * z) / 2);
+    const p =
+      d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
     return z > 0 ? 1 - p : p;
   }
 
@@ -438,11 +441,7 @@ export class ABTestingFramework {
     await this.redis.hincrby(`experiment:${experimentId}:${variantId}`, metric, Math.floor(value));
 
     if (metric === 'conversions' && value > 1) {
-      await this.redis.hincrbyfloat(
-        `experiment:${experimentId}:${variantId}`,
-        'totalValue',
-        value
-      );
+      await this.redis.hincrbyfloat(`experiment:${experimentId}:${variantId}`, 'totalValue', value);
     }
   }
 
@@ -451,7 +450,7 @@ export class ABTestingFramework {
     return {
       impressions: parseInt(stats.impressions || '0'),
       conversions: parseInt(stats.conversions || '0'),
-      totalValue: parseFloat(stats.totalValue || '0')
+      totalValue: parseFloat(stats.totalValue || '0'),
     };
   }
 

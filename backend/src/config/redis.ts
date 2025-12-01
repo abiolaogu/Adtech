@@ -13,7 +13,7 @@ export async function initializeRedis(): Promise<void> {
     retryStrategy(times: number) {
       const delay = Math.min(times * 50, 2000);
       return delay;
-    }
+    },
   };
 
   redisClient = new Redis(redisConfig);

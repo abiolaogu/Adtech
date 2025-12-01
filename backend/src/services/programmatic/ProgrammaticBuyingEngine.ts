@@ -115,7 +115,7 @@ export class ProgrammaticBuyingEngine {
     'sovrn',
     'triplelift',
     'criteo',
-    'medianet'
+    'medianet',
   ];
 
   constructor() {
@@ -138,10 +138,7 @@ export class ProgrammaticBuyingEngine {
   /**
    * Make real-time bidding decision with AI optimization
    */
-  async makeBidDecision(
-    request: BidRequest,
-    campaign: CampaignContext
-  ): Promise<BidResponse> {
+  async makeBidDecision(request: BidRequest, campaign: CampaignContext): Promise<BidResponse> {
     const startTime = Date.now();
 
     try {
@@ -195,11 +192,17 @@ export class ProgrammaticBuyingEngine {
         shouldBid,
         bidPrice: pacedBid,
         confidence: this.calculateConfidence(features, predictedCTR, predictedCVR),
-        reasoning: this.generateReasoning(shouldBid, pacedBid, predictedCTR, predictedCVR, arbitrage),
+        reasoning: this.generateReasoning(
+          shouldBid,
+          pacedBid,
+          predictedCTR,
+          predictedCVR,
+          arbitrage
+        ),
         predictedCTR,
         predictedCVR,
         estimatedROI,
-        arbitrageOpportunity: arbitrage
+        arbitrageOpportunity: arbitrage,
       };
 
       // Track performance
@@ -218,7 +221,7 @@ export class ProgrammaticBuyingEngine {
         reasoning: 'Error in bid calculation',
         predictedCTR: 0,
         predictedCVR: 0,
-        estimatedROI: 0
+        estimatedROI: 0,
       };
     }
   }
@@ -321,32 +324,29 @@ export class ProgrammaticBuyingEngine {
   /**
    * Calculate inventory value score
    */
-  private async calculateInventoryValue(
-    request: BidRequest,
-    features: number[]
-  ): Promise<number> {
+  private async calculateInventoryValue(request: BidRequest, features: number[]): Promise<number> {
     // Factors that influence inventory value:
     let value = 1.0;
 
     // 1. Domain quality
     const domainQuality = this.getDomainQualityScore(request.domain);
-    value *= (1 + domainQuality * 0.5);
+    value *= 1 + domainQuality * 0.5;
 
     // 2. Placement type value
     const placementMultipliers = {
-      'video': 2.5,
-      'native': 1.8,
-      'display': 1.0,
-      'audio': 1.5
+      video: 2.5,
+      native: 1.8,
+      display: 1.0,
+      audio: 1.5,
     };
     value *= placementMultipliers[request.placementType];
 
     // 3. Device type value
     const deviceMultipliers = {
-      'ctv': 3.0,
-      'desktop': 1.5,
-      'mobile': 1.2,
-      'tablet': 1.0
+      ctv: 3.0,
+      desktop: 1.5,
+      mobile: 1.2,
+      tablet: 1.0,
     };
     value *= deviceMultipliers[request.deviceType];
 
@@ -423,15 +423,19 @@ export class ProgrammaticBuyingEngine {
       const marketPrices = await this.getMarketPrices(request);
 
       // Find buy/sell opportunities
-      const buyPrices = marketPrices.filter(p => p.exchange !== 'google_adx' && p.exchange !== 'appnexus');
-      const sellPrices = marketPrices.filter(p => p.exchange === 'google_adx' || p.exchange === 'appnexus');
+      const buyPrices = marketPrices.filter(
+        (p) => p.exchange !== 'google_adx' && p.exchange !== 'appnexus'
+      );
+      const sellPrices = marketPrices.filter(
+        (p) => p.exchange === 'google_adx' || p.exchange === 'appnexus'
+      );
 
       if (buyPrices.length === 0 || sellPrices.length === 0) {
         return undefined;
       }
 
-      const lowestBuy = Math.min(...buyPrices.map(p => p.price));
-      const highestSell = Math.max(...sellPrices.map(p => p.price));
+      const lowestBuy = Math.min(...buyPrices.map((p) => p.price));
+      const highestSell = Math.max(...sellPrices.map((p) => p.price));
 
       // Calculate arbitrage margin
       const margin = highestSell - lowestBuy;
@@ -444,7 +448,7 @@ export class ProgrammaticBuyingEngine {
           buyPrice: lowestBuy,
           sellPrice: highestSell,
           margin,
-          profitability
+          profitability,
         };
       }
 
@@ -458,7 +462,9 @@ export class ProgrammaticBuyingEngine {
   /**
    * Get market prices for inventory across exchanges
    */
-  private async getMarketPrices(request: BidRequest): Promise<Array<{ exchange: string; price: number }>> {
+  private async getMarketPrices(
+    request: BidRequest
+  ): Promise<Array<{ exchange: string; price: number }>> {
     const cacheKey = `market:${request.inventoryId}:${request.placementType}`;
 
     // Check cache first
@@ -468,9 +474,9 @@ export class ProgrammaticBuyingEngine {
     }
 
     // Simulate market data (in production, query real exchanges)
-    const prices = this.EXCHANGES.map(exchange => ({
+    const prices = this.EXCHANGES.map((exchange) => ({
       exchange,
-      price: this.simulateExchangePrice(request, exchange)
+      price: this.simulateExchangePrice(request, exchange),
     }));
 
     // Cache for 30 seconds
@@ -483,16 +489,16 @@ export class ProgrammaticBuyingEngine {
     // Simulate price variation across exchanges
     const basePrice = request.floorPrice * (1.5 + Math.random());
     const exchangeMultipliers: Record<string, number> = {
-      'google_adx': 2.5,
-      'appnexus': 2.2,
-      'openx': 1.3,
-      'pubmatic': 1.4,
-      'rubicon': 1.2,
-      'index_exchange': 1.5,
-      'sovrn': 1.1,
-      'triplelift': 1.8,
-      'criteo': 1.6,
-      'medianet': 1.3
+      google_adx: 2.5,
+      appnexus: 2.2,
+      openx: 1.3,
+      pubmatic: 1.4,
+      rubicon: 1.2,
+      index_exchange: 1.5,
+      sovrn: 1.1,
+      triplelift: 1.8,
+      criteo: 1.6,
+      medianet: 1.3,
     };
 
     return basePrice * (exchangeMultipliers[exchange] || 1.0);
@@ -551,10 +557,7 @@ export class ProgrammaticBuyingEngine {
     if (predictedCTR < 0.0001) return false;
 
     // Audience targeting check
-    const audienceMatch = this.getAudienceMatchScore(
-      request.segments,
-      campaign.targetAudience
-    );
+    const audienceMatch = this.getAudienceMatchScore(request.segments, campaign.targetAudience);
     if (audienceMatch < 0.3) return false;
 
     // Geographic targeting check
@@ -575,7 +578,7 @@ export class ProgrammaticBuyingEngine {
     campaign: CampaignContext
   ): number {
     const avgOrderValue = 100; // TODO: Get from campaign
-    const cost = (bidPrice / 1000); // CPM to cost per impression
+    const cost = bidPrice / 1000; // CPM to cost per impression
     const expectedRevenue = predictedCTR * predictedCVR * avgOrderValue;
 
     if (cost === 0) return 0;
@@ -618,7 +621,8 @@ export class ProgrammaticBuyingEngine {
 
     if (predictedCTR > 0.01) reasons.push('High predicted CTR');
     if (predictedCVR > 0.05) reasons.push('Strong conversion probability');
-    if (arbitrage?.detected) reasons.push(`Arbitrage opportunity: ${arbitrage.profitability.toFixed(1)}% margin`);
+    if (arbitrage?.detected)
+      reasons.push(`Arbitrage opportunity: ${arbitrage.profitability.toFixed(1)}% margin`);
 
     return reasons.length > 0 ? reasons.join(', ') : 'Standard bidding strategy';
   }
@@ -639,7 +643,7 @@ export class ProgrammaticBuyingEngine {
       predictedCTR: response.predictedCTR,
       predictedCVR: response.predictedCVR,
       processingTime,
-      arbitrage: response.arbitrageOpportunity
+      arbitrage: response.arbitrageOpportunity,
     };
 
     // Store for analytics
@@ -685,7 +689,7 @@ export class ProgrammaticBuyingEngine {
   }
 
   private encodeOneHot(value: string, options: string[]): number[] {
-    return options.map(opt => opt === value ? 1 : 0);
+    return options.map((opt) => (opt === value ? 1 : 0));
   }
 
   private encodeSegments(segments: string[], maxLength: number): number[] {
@@ -720,7 +724,7 @@ export class ProgrammaticBuyingEngine {
 
   private getAudienceMatchScore(userSegments: string[], targetSegments: string[]): number {
     if (targetSegments.length === 0) return 1.0;
-    const matches = userSegments.filter(s => targetSegments.includes(s));
+    const matches = userSegments.filter((s) => targetSegments.includes(s));
     return matches.length / targetSegments.length;
   }
 
