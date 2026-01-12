@@ -20,7 +20,7 @@ export async function initializeRedis(): Promise<void> {
   redisPubClient = new Redis(redisConfig);
   redisSubClient = new Redis(redisConfig);
 
-  redisClient.on('error', (err) => {
+  redisClient.on('error', err => {
     logger.error('Redis Client Error:', err);
   });
 

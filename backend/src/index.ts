@@ -161,14 +161,18 @@ app.get('/live', (req, res) => {
 // Initialize services
 async function initializeServices() {
   try {
-    // Initialize Redis
+    // Initialize Turbospike (High-performance NoSQL database)
+    await turbospike.connect();
+    logger.info('✅ Turbospike connected successfully');
+
+    // Initialize Redis (Caching layer)
     await initializeRedis();
-    logger.info('Redis connected successfully');
+    logger.info('✅ Redis connected successfully');
 
     // Initialize RTB Engine
     const rtbEngine = RTBEngine.getInstance();
     await rtbEngine.initialize(io);
-    logger.info('RTB Engine initialized successfully');
+    logger.info('✅ RTB Engine initialized successfully');
 
     // API rate limiting (applied to all API routes)
     app.use('/api', apiRateLimiter);

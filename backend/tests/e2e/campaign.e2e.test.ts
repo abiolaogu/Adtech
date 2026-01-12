@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app } from '../../src/app';
+import app from '../../src/app';
 import { PrismaClient } from '@prisma/client';
 
 /**
@@ -39,7 +39,7 @@ describe('Campaign E2E Tests', () => {
         .send({
           email: 'test@example.com',
           password: 'SecurePass123!',
-          name: 'Test User'
+          name: 'Test User',
         })
         .expect(201);
 
@@ -53,7 +53,7 @@ describe('Campaign E2E Tests', () => {
         .post('/api/auth/login')
         .send({
           email: 'test@example.com',
-          password: 'SecurePass123!'
+          password: 'SecurePass123!',
         })
         .expect(200);
 
@@ -66,7 +66,7 @@ describe('Campaign E2E Tests', () => {
         .post('/api/auth/login')
         .send({
           email: 'test@example.com',
-          password: 'wrongpassword'
+          password: 'wrongpassword',
         })
         .expect(401);
     });
@@ -87,8 +87,8 @@ describe('Campaign E2E Tests', () => {
           targeting: {
             geo: ['US', 'CA'],
             age: { min: 25, max: 45 },
-            interests: ['technology', 'finance']
-          }
+            interests: ['technology', 'finance'],
+          },
         })
         .expect(201);
 
@@ -113,7 +113,7 @@ describe('Campaign E2E Tests', () => {
         .patch(`/api/campaigns/${campaignId}`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          dailyBudget: 750
+          dailyBudget: 750,
         })
         .expect(200);
 
@@ -131,7 +131,7 @@ describe('Campaign E2E Tests', () => {
           format: 'display',
           size: '300x250',
           content: '<div>Test Ad</div>',
-          clickUrl: 'https://example.com'
+          clickUrl: 'https://example.com',
         })
         .expect(201);
 
@@ -144,7 +144,7 @@ describe('Campaign E2E Tests', () => {
         .post(`/api/campaigns/${campaignId}/creatives`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          creativeId
+          creativeId,
         })
         .expect(201);
     });
@@ -169,7 +169,7 @@ describe('Campaign E2E Tests', () => {
           name: 'No Creative Campaign',
           objective: 'traffic',
           totalBudget: 1000,
-          startDate: new Date().toISOString()
+          startDate: new Date().toISOString(),
         })
         .expect(201);
 
@@ -192,8 +192,8 @@ describe('Campaign E2E Tests', () => {
           pageUrl: 'https://example.com/page',
           deviceType: 'desktop',
           geo: {
-            country: 'US'
-          }
+            country: 'US',
+          },
         })
         .expect(200);
 
@@ -212,7 +212,7 @@ describe('Campaign E2E Tests', () => {
           sizes: ['300x250'],
           pageUrl: 'https://example.com',
           deviceType: 'desktop',
-          geo: { country: 'US' }
+          geo: { country: 'US' },
         });
 
       const adId = serveResponse.body.adId;
@@ -221,7 +221,7 @@ describe('Campaign E2E Tests', () => {
         .post(`/api/track/impression/${adId}`)
         .send({
           viewable: true,
-          viewTime: 5000
+          viewTime: 5000,
         })
         .expect(200);
     });
@@ -236,14 +236,12 @@ describe('Campaign E2E Tests', () => {
           sizes: ['300x250'],
           pageUrl: 'https://example.com',
           deviceType: 'desktop',
-          geo: { country: 'US' }
+          geo: { country: 'US' },
         });
 
       const adId = serveResponse.body.adId;
 
-      await request(app)
-        .post(`/api/track/click/${adId}`)
-        .expect(200);
+      await request(app).post(`/api/track/click/${adId}`).expect(200);
     });
   });
 
@@ -254,7 +252,7 @@ describe('Campaign E2E Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .query({
           startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          endDate: new Date().toISOString()
+          endDate: new Date().toISOString(),
         })
         .expect(200);
 
@@ -273,10 +271,10 @@ describe('Campaign E2E Tests', () => {
           type: 'campaign_performance',
           dateRange: {
             start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            end: new Date().toISOString()
+            end: new Date().toISOString(),
           },
           dimensions: ['campaign', 'date'],
-          metrics: ['impressions', 'clicks', 'ctr', 'spend', 'conversions']
+          metrics: ['impressions', 'clicks', 'ctr', 'spend', 'conversions'],
         })
         .expect(201);
 
@@ -305,7 +303,7 @@ describe('Campaign E2E Tests', () => {
           sizes: ['300x250'],
           pageUrl: 'https://example.com',
           deviceType: 'desktop',
-          geo: { country: 'US' }
+          geo: { country: 'US' },
         })
         .expect(200);
 
@@ -331,7 +329,7 @@ describe('Campaign E2E Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           totalBudget: 1, // $1
-          spent: 1 // Exhausted
+          spent: 1, // Exhausted
         });
 
       const response = await request(app)
@@ -352,7 +350,7 @@ describe('Campaign E2E Tests', () => {
           name: 'Invalid Campaign',
           objective: 'conversions',
           totalBudget: -100, // Negative budget
-          startDate: new Date().toISOString()
+          startDate: new Date().toISOString(),
         })
         .expect(400);
     });
@@ -365,7 +363,7 @@ describe('Campaign E2E Tests', () => {
           name: 'Past Campaign',
           objective: 'traffic',
           totalBudget: 1000,
-          startDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+          startDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
         })
         .expect(400);
     });
@@ -373,27 +371,21 @@ describe('Campaign E2E Tests', () => {
 
   describe('Authorization', () => {
     it('should not allow unauthorized access', async () => {
-      await request(app)
-        .get(`/api/campaigns/${campaignId}`)
-        .expect(401);
+      await request(app).get(`/api/campaigns/${campaignId}`).expect(401);
     });
 
     it('should not allow access to other users campaigns', async () => {
       // Create another user
-      const otherUserResponse = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'other@example.com',
-          password: 'SecurePass123!',
-          name: 'Other User'
-        });
+      await request(app).post('/api/auth/register').send({
+        email: 'other@example.com',
+        password: 'SecurePass123!',
+        name: 'Other User',
+      });
 
-      const otherLoginResponse = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'other@example.com',
-          password: 'SecurePass123!'
-        });
+      const otherLoginResponse = await request(app).post('/api/auth/login').send({
+        email: 'other@example.com',
+        password: 'SecurePass123!',
+      });
 
       const otherToken = otherLoginResponse.body.token;
 
