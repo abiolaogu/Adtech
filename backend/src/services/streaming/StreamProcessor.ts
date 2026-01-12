@@ -1,106 +1,21 @@
 import { EventEmitter } from 'events';
-import { getRedisClient, getRedisPubClient, getRedisSubClient } from '../../../config/redis';
-import { logger } from '../../../utils/logger';
-import { prisma } from '../../../config/database';
+import { getRedisClient, getRedisPubClient, getRedisSubClient } from '../../config/redis';
+import { logger } from '../../utils/logger';
+import { prisma } from '../../config/database';
 
-/**
- * Real-Time Stream Processing Engine
- * Processes billions of events per day with sub-millisecond latency
- * Inspired by Apache Kafka/Flink but optimized for AdTech
- */
 export class StreamProcessor extends EventEmitter {
-  private static instance: StreamProcessor;
   private redis = getRedisClient();
   private pubClient = getRedisPubClient();
   private subClient = getRedisSubClient();
-  private processors: Map<string, StreamHandler> = new Map();
-  private batchBuffer: Map<string, any[]> = new Map();
-  private readonly BATCH_SIZE = 1000;
+  private batchBuffer = new Map<string, any[]>();
+  private processors = new Map<string, StreamHandler>();
+  private readonly BATCH_SIZE = 100;
   private readonly BATCH_INTERVAL = 5000; // 5 seconds
 
-  private constructor() {
+  constructor() {
     super();
-    this.initializeProcessors();
     this.startBatchProcessing();
   }
-
-  static getInstance(): StreamProcessor {
-    if (!StreamProcessor.instance) {
-      StreamProcessor.instance = new StreamProcessor();
-    }
-    return StreamProcessor.instance;
-  }
-
-  /**
-   * Initialize stream processors
-   */
-  private initializeProcessors() {
-    // Impression stream processor
-    this.registerProcessor('impressions', {
-      process: async (events) => this.processImpressions(events),
-      aggregation: 'time-window',
-      windowSize: 60000 // 1 minute
-    });
-
-    // Click stream processor
-    this.registerProcessor('clicks', {
-      process: async (events) => this.processClicks(events),
-      aggregation: 'time-window',
-      windowSize: 60000
-    });
-
-    // Conversion stream processor
-    this.registerProcessor('conversions', {
-      process: async (events) => this.processConversions(events),
-      aggregation: 'session',
-      windowSize: 1800000 // 30 minutes
-    });
-
-    // Real-time bidding stream
-    this.registerProcessor('bids', {
-      process: async (events) => this.processBids(events),
-      aggregation: 'count',
-      windowSize: 1000
-    });
-
-    // User behavior stream
-    this.registerProcessor('user-events', {
-      process: async (events) => this.processUserEvents(events),
-      aggregation: 'session',
-      windowSize: 600000 // 10 minutes
-    });
-
-    logger.info('Stream processors initialized');
-  }
-
-  /**
-   * Register a stream processor
-   */
-  registerProcessor(streamName: string, handler: StreamHandler) {
-    this.processors.set(streamName, handler);
-    this.batchBuffer.set(streamName, []);
-
-    // Subscribe to Redis stream
-    this.subscribeToStream(streamName);
-  }
-
-  /**
-   * Subscribe to Redis Pub/Sub stream
-   */
-  private async subscribeToStream(streamName: string) {
-    await this.subClient.subscribe(`stream:${streamName}`, (err) => {
-      if (err) {
-        logger.error(`Failed to subscribe to stream ${streamName}`, { err });
-      }
-    });
-
-    this.subClient.on('message', (channel, message) => {
-      if (channel === `stream:${streamName}`) {
-        this.handleStreamEvent(streamName, JSON.parse(message));
-      }
-    });
-  }
-
   /**
    * Publish event to stream
    */
@@ -110,26 +25,17 @@ export class StreamProcessor extends EventEmitter {
       const enrichedEvent = {
         ...event,
         timestamp: event.timestamp || Date.now(),
-        streamId: `${streamName}-${Date.now()}-${Math.random()}`
+        streamId: `${streamName}-${Date.now()}-${Math.random()}`,
       };
 
       // Publish to Redis stream
-      await this.pubClient.publish(
-        `stream:${streamName}`,
-        JSON.stringify(enrichedEvent)
-      );
+      await this.pubClient.publish(`stream:${streamName}`, JSON.stringify(enrichedEvent));
 
       // Also add to Redis Stream for persistence
-      await this.redis.xadd(
-        `stream:${streamName}:log`,
-        '*',
-        'data',
-        JSON.stringify(enrichedEvent)
-      );
+      await this.redis.xadd(`stream:${streamName}:log`, '*', 'data', JSON.stringify(enrichedEvent));
 
       // Emit local event
       this.emit(streamName, enrichedEvent);
-
     } catch (error) {
       logger.error('Failed to publish stream event', { streamName, error });
     }
@@ -183,12 +89,11 @@ export class StreamProcessor extends EventEmitter {
         stream: streamName,
         count: events.length,
         duration: `${duration}ms`,
-        throughput: `${(events.length / duration * 1000).toFixed(0)} events/sec`
+        throughput: `${((events.length / duration) * 1000).toFixed(0)} events/sec`,
       });
 
       // Update metrics
       await this.updateStreamMetrics(streamName, events.length, duration);
-
     } catch (error) {
       logger.error('Batch processing failed', { streamName, error });
     }
@@ -201,20 +106,19 @@ export class StreamProcessor extends EventEmitter {
     // Aggregate impressions by campaign
     const campaignImpressions = new Map<string, number>();
 
-    events.forEach(event => {
+    events.forEach((event) => {
       const count = campaignImpressions.get(event.campaignId) || 0;
       campaignImpressions.set(event.campaignId, count + 1);
     });
 
     // Batch update campaigns
-    const updates = Array.from(campaignImpressions.entries()).map(
-      ([campaignId, count]) =>
-        prisma.campaign.update({
-          where: { id: campaignId },
-          data: {
-            impressions: { increment: count }
-          }
-        })
+    const updates = Array.from(campaignImpressions.entries()).map(([campaignId, count]) =>
+      prisma.campaign.update({
+        where: { id: campaignId },
+        data: {
+          impressions: { increment: count },
+        },
+      })
     );
 
     await Promise.all(updates);
@@ -229,19 +133,18 @@ export class StreamProcessor extends EventEmitter {
   private async processClicks(events: any[]) {
     const campaignClicks = new Map<string, number>();
 
-    events.forEach(event => {
+    events.forEach((event) => {
       const count = campaignClicks.get(event.campaignId) || 0;
       campaignClicks.set(event.campaignId, count + 1);
     });
 
-    const updates = Array.from(campaignClicks.entries()).map(
-      ([campaignId, count]) =>
-        prisma.campaign.update({
-          where: { id: campaignId },
-          data: {
-            clicks: { increment: count }
-          }
-        })
+    const updates = Array.from(campaignClicks.entries()).map(([campaignId, count]) =>
+      prisma.campaign.update({
+        where: { id: campaignId },
+        data: {
+          clicks: { increment: count },
+        },
+      })
     );
 
     await Promise.all(updates);
@@ -260,22 +163,21 @@ export class StreamProcessor extends EventEmitter {
   private async processConversions(events: any[]) {
     const campaignConversions = new Map<string, { count: number; value: number }>();
 
-    events.forEach(event => {
+    events.forEach((event) => {
       const existing = campaignConversions.get(event.campaignId) || { count: 0, value: 0 };
       campaignConversions.set(event.campaignId, {
         count: existing.count + 1,
-        value: existing.value + (event.value || 0)
+        value: existing.value + (event.value || 0),
       });
     });
 
-    const updates = Array.from(campaignConversions.entries()).map(
-      ([campaignId, data]) =>
-        prisma.campaign.update({
-          where: { id: campaignId },
-          data: {
-            conversions: { increment: data.count }
-          }
-        })
+    const updates = Array.from(campaignConversions.entries()).map(([campaignId, data]) =>
+      prisma.campaign.update({
+        where: { id: campaignId },
+        data: {
+          conversions: { increment: data.count },
+        },
+      })
     );
 
     await Promise.all(updates);
@@ -290,16 +192,12 @@ export class StreamProcessor extends EventEmitter {
     // Store bid analytics
     const bidMetrics = {
       total: events.length,
-      won: events.filter(e => e.won).length,
+      won: events.filter((e) => e.won).length,
       avgBid: events.reduce((sum, e) => sum + e.bidPrice, 0) / events.length,
-      avgFloor: events.reduce((sum, e) => sum + e.floorPrice, 0) / events.length
+      avgFloor: events.reduce((sum, e) => sum + e.floorPrice, 0) / events.length,
     };
 
-    await this.redis.setex(
-      'metrics:bids:realtime',
-      60,
-      JSON.stringify(bidMetrics)
-    );
+    await this.redis.setex('metrics:bids:realtime', 60, JSON.stringify(bidMetrics));
   }
 
   /**
@@ -309,7 +207,7 @@ export class StreamProcessor extends EventEmitter {
     // Group by customer
     const customerEvents = new Map<string, any[]>();
 
-    events.forEach(event => {
+    events.forEach((event) => {
       const existing = customerEvents.get(event.customerId) || [];
       existing.push(event);
       customerEvents.set(event.customerId, existing);
@@ -321,19 +219,19 @@ export class StreamProcessor extends EventEmitter {
         await prisma.customer.update({
           where: { id: customerId },
           data: {
-            lastSeen: new Date()
-          }
+            lastSeen: new Date(),
+          },
         });
 
         // Store events
         await prisma.customerEvent.createMany({
-          data: customerEventList.map(e => ({
+          data: customerEventList.map((e) => ({
             customerId,
             eventType: e.eventType,
             eventName: e.eventName,
             properties: e.properties,
-            timestamp: new Date(e.timestamp)
-          }))
+            timestamp: new Date(e.timestamp),
+          })),
         });
       }
     );
@@ -347,16 +245,12 @@ export class StreamProcessor extends EventEmitter {
   private async calculateCTR(campaignId: string) {
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
-      select: { impressions: true, clicks: true }
+      select: { impressions: true, clicks: true },
     });
 
     if (campaign && campaign.impressions > 0) {
       const ctr = (campaign.clicks / campaign.impressions) * 100;
-      await this.redis.setex(
-        `campaign:${campaignId}:ctr`,
-        300,
-        ctr.toFixed(4)
-      );
+      await this.redis.setex(`campaign:${campaignId}:ctr`, 300, ctr.toFixed(4));
     }
   }
 
@@ -372,17 +266,13 @@ export class StreamProcessor extends EventEmitter {
   /**
    * Update stream processing metrics
    */
-  private async updateStreamMetrics(
-    streamName: string,
-    count: number,
-    duration: number
-  ) {
+  private async updateStreamMetrics(streamName: string, count: number, duration: number) {
     const key = `stream:metrics:${streamName}`;
     const metrics = {
       lastBatchSize: count,
       lastBatchDuration: duration,
       throughput: (count / duration) * 1000,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     await this.redis.setex(key, 300, JSON.stringify(metrics));
@@ -404,7 +294,7 @@ export class StreamProcessor extends EventEmitter {
         return {
           stream,
           length: streamLength,
-          metrics
+          metrics,
         };
       })
     );

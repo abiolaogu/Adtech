@@ -1,28 +1,29 @@
-// Test setup file
-// This runs before all tests
+// Test setup file - runs before all tests
+import { PrismaClient } from '@prisma/client';
+
+// Mock logger to prevent console spam during tests
+jest.mock('../src/utils/logger', () => ({
+    logger: {
+        info: jest.fn(),
+        error: jest.fn(),
+        warn: jest.fn(),
+        debug: jest.fn()
+    }
+}));
 
 // Set test environment variables
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/adtech_test';
 process.env.REDIS_HOST = 'localhost';
 process.env.REDIS_PORT = '6379';
-process.env.JWT_SECRET = 'test-secret-key-for-testing-only';
+process.env.JWT_SECRET = 'test-secret-key';
+process.env.JWT_EXPIRES_IN = '1h';
 
-// Increase test timeout for E2E tests
+// Global test timeout
 jest.setTimeout(30000);
-
-// Mock console methods to reduce noise in tests
-global.console = {
-  ...console,
-  log: jest.fn(),
-  debug: jest.fn(),
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-};
 
 // Clean up after all tests
 afterAll(async () => {
-  // Close any open connections
-  await new Promise(resolve => setTimeout(resolve, 500));
+    // Close any open connections
+    await new Promise(resolve => setTimeout(resolve, 500));
 });

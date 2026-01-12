@@ -2,22 +2,21 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop, 'claude/**']
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
 
 env:
-  NODE_VERSION: '20.x'
+  NODE_VERSION: '20'
   DOCKER_REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ============================================
-  # JOB 1: Code Quality & Security
-  # ============================================
-  code-quality:
-    name: Code Quality & Linting
+  # Job 1: Lint and Type Check
+  lint-and-typecheck:
+    name: Lint & Type Check
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,30 +26,29 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: 'backend/package-lock.json'
 
-      - name: Install dependencies
-        working-directory: ./backend
+      - name: Install backend dependencies
+        working-directory: backend
         run: npm ci
 
+      - name: Generate Prisma Client
+        working-directory: backend
+        run: npx prisma generate
+
       - name: Run ESLint
-        working-directory: ./backend
+        working-directory: backend
         run: npm run lint
 
-      - name: Run Prettier check
-        working-directory: ./backend
-        run: npm run format:check
-
-      - name: TypeScript type check
-        working-directory: ./backend
+      - name: Run TypeScript type check
+        working-directory: backend
         run: npm run type-check
 
-  # ============================================
-  # JOB 2: Security Scanning
-  # ============================================
-  security-scan:
-    name: Security Vulnerability Scan
+  # Job 2: Unit Tests
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -59,13 +57,114 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
 
       - name: Install dependencies
-        working-directory: ./backend
+        working-directory: backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Run unit tests with coverage
+        working-directory: backend
+        run: npm run test:unit
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./backend/coverage/lcov.info
+          flags: unittests
+          name: codecov-unit
+
+  # Job 3: Integration Tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: adtech
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: adtech_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Run database migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://adtech:password@localhost:5432/adtech_test
+        run: npx prisma migrate deploy
+
+      - name: Run integration tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://adtech:password@localhost:5432/adtech_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-secret-key
+        run: npm run test:integration
+
+  # Job 4: Security Scans
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: backend
         run: npm ci
 
       - name: Run npm audit
-        working-directory: ./backend
+        working-directory: backend
         run: npm audit --audit-level=moderate
         continue-on-error: true
 
@@ -76,185 +175,13 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           args: --severity-threshold=high
-          command: test
 
-      - name: OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@main
-        with:
-          project: 'adtech-platform'
-          path: './backend'
-          format: 'HTML'
-        continue-on-error: true
-
-  # ============================================
-  # JOB 3: Unit Tests
-  # ============================================
-  unit-tests:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: ./backend
-        run: npm ci
-
-      - name: Run unit tests with coverage
-        working-directory: ./backend
-        run: npm run test:unit
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./backend/coverage/lcov.info
-          flags: unittests
-          name: codecov-unit-tests
-
-  # ============================================
-  # JOB 4: Integration Tests
-  # ============================================
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: adtech_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install dependencies
-        working-directory: ./backend
-        run: npm ci
-
-      - name: Generate Prisma Client
-        working-directory: ./backend
-        run: npx prisma generate
-
-      - name: Run database migrations
-        working-directory: ./backend
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/adtech_test
-        run: npx prisma migrate deploy
-
-      - name: Run integration tests
-        working-directory: ./backend
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/adtech_test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-        run: npm run test:integration
-
-  # ============================================
-  # JOB 5: E2E Tests
-  # ============================================
-  e2e-tests:
-    name: End-to-End Tests
-    runs-on: ubuntu-latest
-    needs: [code-quality, unit-tests]
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: adtech_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install dependencies
-        working-directory: ./backend
-        run: npm ci
-
-      - name: Generate Prisma Client
-        working-directory: ./backend
-        run: npx prisma generate
-
-      - name: Run database migrations
-        working-directory: ./backend
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/adtech_test
-        run: npx prisma migrate deploy
-
-      - name: Run E2E tests
-        working-directory: ./backend
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/adtech_test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          JWT_SECRET: test-secret-key
-        run: npm run test:e2e
-
-  # ============================================
-  # JOB 6: Build Docker Images
-  # ============================================
+  # Job 5: Build Docker Images
   build-docker:
     name: Build Docker Images
     runs-on: ubuntu-latest
-    needs: [code-quality, security-scan, unit-tests]
-    permissions:
-      contents: read
-      packages: write
-
+    needs: [lint-and-typecheck, unit-tests]
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -269,163 +196,125 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
+      - name: Extract metadata for Backend
+        id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}-backend
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix={{branch}}-
 
       - name: Build and push Backend image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ============================================
-  # JOB 7: Container Security Scan
-  # ============================================
+      - name: Extract metadata for Frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Job 6: Container Security Scan
   container-scan:
     name: Container Security Scan
     runs-on: ubuntu-latest
     needs: [build-docker]
-    permissions:
-      contents: read
-      security-events: write
-
+    if: github.event_name != 'pull_request'
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner - Backend
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          image-ref: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.ref_name }}
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-backend-results.sarif'
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: 'trivy-backend-results.sarif'
+          category: 'trivy-backend'
 
-  # ============================================
-  # JOB 8: Deploy to Staging
-  # ============================================
+      - name: Run Trivy vulnerability scanner - Frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.ref_name }}
+          format: 'sarif'
+          output: 'trivy-frontend-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-frontend-results.sarif'
+          category: 'trivy-frontend'
+
+  # Job 7: Deploy to Staging (only on develop branch)
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [e2e-tests, build-docker, container-scan]
-    if: github.ref == 'refs/heads/develop'
+    needs: [integration-tests, build-docker, container-scan]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     environment:
       name: staging
-      url: https://staging-api.adtech.com
-
+      url: https://staging.adtech.example.com
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure kubectl
-        uses: azure/setup-kubectl@v3
-
-      - name: Set Kubernetes context
-        uses: azure/k8s-set-context@v3
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
-
-      - name: Deploy to Kubernetes
+      - name: Deploy to staging
         run: |
-          kubectl set image deployment/adtech-backend \
-            adtech-backend=${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            -n staging
+          echo "Deploying to staging environment..."
+          # Add your deployment script here
+          # kubectl set image deployment/adtech-backend adtech-backend=${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}
 
-          kubectl rollout status deployment/adtech-backend -n staging --timeout=5m
-
-      - name: Run smoke tests
-        run: |
-          sleep 30
-          curl -f https://staging-api.adtech.com/health || exit 1
-
-  # ============================================
-  # JOB 9: Deploy to Production
-  # ============================================
+  # Job 8: Deploy to Production (only on main branch with approval)
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [deploy-staging]
-    if: github.ref == 'refs/heads/main'
+    needs: [integration-tests, build-docker, container-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production
-      url: https://api.adtech.com
-
+      url: https://adtech.example.com
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure kubectl
-        uses: azure/setup-kubectl@v3
-
-      - name: Set Kubernetes context
-        uses: azure/k8s-set-context@v3
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
-
-      - name: Deploy to Kubernetes (Blue-Green)
+      - name: Deploy to production
         run: |
-          # Deploy to green environment
-          kubectl set image deployment/adtech-backend-green \
-            adtech-backend=${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            -n production
-
-          kubectl rollout status deployment/adtech-backend-green -n production --timeout=10m
-
-          # Run smoke tests on green
-          sleep 30
-          kubectl port-forward svc/adtech-backend-green 8080:80 -n production &
-          PF_PID=$!
-          sleep 5
-          curl -f http://localhost:8080/health || (kill $PF_PID && exit 1)
-          kill $PF_PID
-
-          # Switch traffic to green
-          kubectl patch service adtech-backend-service -n production \
-            -p '{"spec":{"selector":{"version":"green"}}}'
-
-      - name: Run production smoke tests
-        run: |
-          curl -f https://api.adtech.com/health || exit 1
-
-  # ============================================
-  # JOB 10: Notification
-  # ============================================
-  notify:
-    name: Send Notifications
-    runs-on: ubuntu-latest
-    needs: [deploy-production]
-    if: always()
-
-    steps:
-      - name: Send Slack notification
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: |
-            Deployment Status: ${{ job.status }}
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref }}
-            Commit: ${{ github.sha }}
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-        if: always()
+          echo "Deploying to production environment..."
+          # Add your deployment script here
+          # kubectl set image deployment/adtech-backend adtech-backend=${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}

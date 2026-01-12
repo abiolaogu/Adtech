@@ -36,9 +36,9 @@ export class CDP {
           OR: [
             data.email ? { email: data.email } : {},
             data.phone ? { phone: data.phone } : {},
-            data.externalId ? { externalId: data.externalId } : {}
-          ].filter(obj => Object.keys(obj).length > 0)
-        }
+            data.externalId ? { externalId: data.externalId } : {},
+          ].filter((obj) => Object.keys(obj).length > 0),
+        },
       });
 
       if (customer) {
@@ -48,11 +48,11 @@ export class CDP {
           data: {
             ...data,
             attributes: {
-              ...(customer.attributes as object || {}),
-              ...(data.attributes || {})
+              ...((customer.attributes as object) || {}),
+              ...(data.attributes || {}),
             },
-            lastSeen: new Date()
-          }
+            lastSeen: new Date(),
+          },
         });
 
         logger.debug('Customer updated', { customerId: customer.id });
@@ -62,8 +62,8 @@ export class CDP {
           data: {
             ...data,
             firstSeen: new Date(),
-            lastSeen: new Date()
-          }
+            lastSeen: new Date(),
+          },
         });
 
         logger.info('New customer created', { customerId: customer.id });
@@ -112,20 +112,20 @@ export class CDP {
           sessionId: params.sessionId,
           deviceType: params.deviceType,
           browser: params.browser,
-          ipAddress: params.ipAddress
-        }
+          ipAddress: params.ipAddress,
+        },
       });
 
       // Update customer last seen
       await prisma.customer.update({
         where: { id: customerId },
-        data: { lastSeen: new Date() }
+        data: { lastSeen: new Date() },
       });
 
       logger.debug('Event tracked', {
         customerId,
         eventType: params.eventType,
-        eventName: params.eventName
+        eventName: params.eventName,
       });
 
       return event;
@@ -144,19 +144,19 @@ export class CDP {
       include: {
         events: {
           orderBy: { timestamp: 'desc' },
-          take: 50
+          take: 50,
         },
         segments: {
           include: {
-            audience: true
-          }
+            audience: true,
+          },
         },
         journeys: {
           include: {
-            journey: true
-          }
-        }
-      }
+            journey: true,
+          },
+        },
+      },
     });
 
     if (!customer) {
@@ -168,7 +168,7 @@ export class CDP {
 
     return {
       ...customer,
-      metrics
+      metrics,
     };
   }
 
@@ -177,10 +177,10 @@ export class CDP {
    */
   private async calculateCustomerMetrics(customerId: string) {
     const events = await prisma.customerEvent.findMany({
-      where: { customerId }
+      where: { customerId },
     });
 
-    const purchases = events.filter(e => e.eventType === 'purchase');
+    const purchases = events.filter((e) => e.eventType === 'purchase');
     const totalRevenue = purchases.reduce((sum, e) => {
       const props = e.properties as any;
       return sum + (props?.value || 0);
@@ -195,7 +195,7 @@ export class CDP {
       totalRevenue,
       avgOrderValue: purchases.length > 0 ? totalRevenue / purchases.length : 0,
       avgSessionDuration,
-      engagementScore
+      engagementScore,
     };
   }
 
@@ -205,7 +205,7 @@ export class CDP {
   private calculateAvgSessionDuration(events: any[]): number {
     const sessions = new Map<string, Date[]>();
 
-    events.forEach(event => {
+    events.forEach((event) => {
       if (event.sessionId) {
         if (!sessions.has(event.sessionId)) {
           sessions.set(event.sessionId, []);
@@ -217,7 +217,7 @@ export class CDP {
     let totalDuration = 0;
     let sessionCount = 0;
 
-    sessions.forEach(timestamps => {
+    sessions.forEach((timestamps) => {
       if (timestamps.length > 1) {
         timestamps.sort((a, b) => a.getTime() - b.getTime());
         const duration = timestamps[timestamps.length - 1].getTime() - timestamps[0].getTime();
@@ -233,19 +233,23 @@ export class CDP {
    * Calculate engagement score (0-100)
    */
   private calculateEngagementScore(events: any[]): number {
-    const daysSinceFirstEvent = events.length > 0
-      ? (Date.now() - events[events.length - 1].timestamp.getTime()) / (1000 * 60 * 60 * 24)
-      : 0;
+    const daysSinceFirstEvent =
+      events.length > 0
+        ? (Date.now() - events[events.length - 1].timestamp.getTime()) / (1000 * 60 * 60 * 24)
+        : 0;
 
     if (daysSinceFirstEvent === 0) return 0;
 
     const eventsPerDay = events.length / daysSinceFirstEvent;
-    const uniqueEventTypes = new Set(events.map(e => e.eventType)).size;
+    const uniqueEventTypes = new Set(events.map((e) => e.eventType)).size;
 
     // Simple scoring algorithm
     const frequencyScore = Math.min(eventsPerDay * 10, 50);
     const diversityScore = Math.min(uniqueEventTypes * 5, 30);
-    const recencyScore = events.length > 0 && events[0].timestamp.getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000 ? 20 : 0;
+    const recencyScore =
+      events.length > 0 && events[0].timestamp.getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000
+        ? 20
+        : 0;
 
     return Math.min(frequencyScore + diversityScore + recencyScore, 100);
   }
@@ -257,7 +261,7 @@ export class CDP {
     try {
       const [primary, secondary] = await Promise.all([
         prisma.customer.findUnique({ where: { id: primaryId } }),
-        prisma.customer.findUnique({ where: { id: secondaryId } })
+        prisma.customer.findUnique({ where: { id: secondaryId } }),
       ]);
 
       if (!primary || !secondary) {
@@ -267,13 +271,13 @@ export class CDP {
       // Merge events
       await prisma.customerEvent.updateMany({
         where: { customerId: secondaryId },
-        data: { customerId: primaryId }
+        data: { customerId: primaryId },
       });
 
       // Merge segments
       await prisma.customerSegment.updateMany({
         where: { customerId: secondaryId },
-        data: { customerId: primaryId }
+        data: { customerId: primaryId },
       });
 
       // Merge attributes
@@ -281,16 +285,17 @@ export class CDP {
         where: { id: primaryId },
         data: {
           attributes: {
-            ...(primary.attributes as object || {}),
-            ...(secondary.attributes as object || {})
+            ...((primary.attributes as object) || {}),
+            ...((secondary.attributes as object) || {}),
           },
-          firstSeen: primary.firstSeen < secondary.firstSeen ? primary.firstSeen : secondary.firstSeen
-        }
+          firstSeen:
+            primary.firstSeen < secondary.firstSeen ? primary.firstSeen : secondary.firstSeen,
+        },
       });
 
       // Delete secondary customer
       await prisma.customer.delete({
-        where: { id: secondaryId }
+        where: { id: secondaryId },
       });
 
       logger.info('Customers merged', { primaryId, secondaryId });
@@ -311,12 +316,12 @@ export class CDP {
       include: {
         events: true,
         segments: {
-          include: { audience: true }
+          include: { audience: true },
         },
         journeys: {
-          include: { journey: true }
-        }
-      }
+          include: { journey: true },
+        },
+      },
     });
 
     if (!customer) {
@@ -332,11 +337,11 @@ export class CDP {
         firstName: customer.firstName,
         lastName: customer.lastName,
         attributes: customer.attributes,
-        createdAt: customer.createdAt
+        createdAt: customer.createdAt,
       },
       events: customer.events,
       segments: customer.segments,
-      journeys: customer.journeys
+      journeys: customer.journeys,
     };
   }
 
@@ -347,19 +352,19 @@ export class CDP {
     try {
       // Delete all related data
       await prisma.customerEvent.deleteMany({
-        where: { customerId }
+        where: { customerId },
       });
 
       await prisma.customerSegment.deleteMany({
-        where: { customerId }
+        where: { customerId },
       });
 
       await prisma.customerJourney.deleteMany({
-        where: { customerId }
+        where: { customerId },
       });
 
       await prisma.customer.delete({
-        where: { id: customerId }
+        where: { id: customerId },
       });
 
       logger.info('Customer data deleted', { customerId });

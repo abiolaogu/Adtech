@@ -112,10 +112,10 @@ export class ArbitrageOptimizer {
       id: 'openx',
       name: 'OpenX',
       type: 'buy',
-      avgCPM: 1.20,
+      avgCPM: 1.2,
       reliability: 0.92,
       latency: 80,
-      apiEndpoint: 'https://api.openx.com/v1'
+      apiEndpoint: 'https://api.openx.com/v1',
     });
 
     this.exchanges.set('pubmatic', {
@@ -123,9 +123,9 @@ export class ArbitrageOptimizer {
       name: 'PubMatic',
       type: 'buy',
       avgCPM: 1.35,
-      reliability: 0.90,
+      reliability: 0.9,
       latency: 75,
-      apiEndpoint: 'https://api.pubmatic.com/v1'
+      apiEndpoint: 'https://api.pubmatic.com/v1',
     });
 
     this.exchanges.set('rubicon', {
@@ -135,7 +135,7 @@ export class ArbitrageOptimizer {
       avgCPM: 1.15,
       reliability: 0.88,
       latency: 85,
-      apiEndpoint: 'https://api.rubiconproject.com/v1'
+      apiEndpoint: 'https://api.rubiconproject.com/v1',
     });
 
     this.exchanges.set('sovrn', {
@@ -145,17 +145,17 @@ export class ArbitrageOptimizer {
       avgCPM: 0.95,
       reliability: 0.85,
       latency: 90,
-      apiEndpoint: 'https://api.sovrn.com/v1'
+      apiEndpoint: 'https://api.sovrn.com/v1',
     });
 
     this.exchanges.set('index_exchange', {
       id: 'index_exchange',
       name: 'Index Exchange',
       type: 'buy',
-      avgCPM: 1.40,
+      avgCPM: 1.4,
       reliability: 0.91,
       latency: 70,
-      apiEndpoint: 'https://api.indexexchange.com/v1'
+      apiEndpoint: 'https://api.indexexchange.com/v1',
     });
 
     // Sell-side exchanges (typically higher CPMs)
@@ -163,40 +163,40 @@ export class ArbitrageOptimizer {
       id: 'google_adx',
       name: 'Google Ad Exchange',
       type: 'sell',
-      avgCPM: 2.80,
+      avgCPM: 2.8,
       reliability: 0.98,
       latency: 50,
-      apiEndpoint: 'https://adexchange.google.com/v1'
+      apiEndpoint: 'https://adexchange.google.com/v1',
     });
 
     this.exchanges.set('appnexus', {
       id: 'appnexus',
       name: 'AppNexus',
       type: 'sell',
-      avgCPM: 2.50,
+      avgCPM: 2.5,
       reliability: 0.95,
       latency: 60,
-      apiEndpoint: 'https://api.appnexus.com/v1'
+      apiEndpoint: 'https://api.appnexus.com/v1',
     });
 
     this.exchanges.set('criteo', {
       id: 'criteo',
       name: 'Criteo',
       type: 'sell',
-      avgCPM: 2.20,
+      avgCPM: 2.2,
       reliability: 0.93,
       latency: 65,
-      apiEndpoint: 'https://api.criteo.com/v1'
+      apiEndpoint: 'https://api.criteo.com/v1',
     });
 
     this.exchanges.set('triplelift', {
       id: 'triplelift',
       name: 'TripleLift',
       type: 'sell',
-      avgCPM: 2.10,
-      reliability: 0.90,
+      avgCPM: 2.1,
+      reliability: 0.9,
       latency: 70,
-      apiEndpoint: 'https://api.triplelift.com/v1'
+      apiEndpoint: 'https://api.triplelift.com/v1',
     });
 
     console.log(`✓ Initialized ${this.exchanges.size} exchanges for arbitrage monitoring`);
@@ -250,7 +250,7 @@ export class ArbitrageOptimizer {
     const prices: InventoryPrice[] = [];
 
     const buyExchanges = Array.from(this.exchanges.values()).filter(
-      ex => ex.type === 'buy' || ex.type === 'both'
+      (ex) => ex.type === 'buy' || ex.type === 'both'
     );
 
     for (const exchange of buyExchanges) {
@@ -272,7 +272,7 @@ export class ArbitrageOptimizer {
     const prices: InventoryPrice[] = [];
 
     const sellExchanges = Array.from(this.exchanges.values()).filter(
-      ex => ex.type === 'sell' || ex.type === 'both'
+      (ex) => ex.type === 'sell' || ex.type === 'both'
     );
 
     for (const exchange of sellExchanges) {
@@ -327,9 +327,9 @@ export class ArbitrageOptimizer {
         timestamp: Date.now(),
         audience: {
           segments: ['tech', 'finance', 'sports'].slice(0, Math.floor(Math.random() * 3) + 1),
-          size: Math.floor(Math.random() * 100000) + 10000
+          size: Math.floor(Math.random() * 100000) + 10000,
         },
-        quality: 0.7 + Math.random() * 0.3
+        quality: 0.7 + Math.random() * 0.3,
       });
     }
 
@@ -349,7 +349,7 @@ export class ArbitrageOptimizer {
     const buySegments = new Set(buyPrice.audience.segments);
     const sellSegments = new Set(sellPrice.audience.segments);
 
-    const overlap = [...buySegments].filter(seg => sellSegments.has(seg)).length;
+    const overlap = [...buySegments].filter((seg) => sellSegments.has(seg)).length;
     const overlapPercentage = overlap / Math.max(buySegments.size, sellSegments.size);
 
     return overlapPercentage >= 0.7; // 70% segment overlap required
@@ -388,17 +388,13 @@ export class ArbitrageOptimizer {
       confidence: this.calculateConfidence(buyPrice, sellPrice),
       expiresAt: Date.now() + 60000, // 1 minute expiry
       risks,
-      status: 'detected'
+      status: 'detected',
     };
 
     this.activeOpportunities.set(opportunityId, opportunity);
 
     // Store in Redis
-    await this.redis.setex(
-      `opportunity:${opportunityId}`,
-      60,
-      JSON.stringify(opportunity)
-    );
+    await this.redis.setex(`opportunity:${opportunityId}`, 60, JSON.stringify(opportunity));
 
     // Track metric
     await this.redis.hincrby('metrics:arbitrage', 'opportunities_detected', 1);
@@ -418,7 +414,7 @@ export class ArbitrageOptimizer {
     const risks: string[] = [];
 
     // Price volatility risk
-    if (buyPrice.price < 0.50 || sellPrice.price > 5.00) {
+    if (buyPrice.price < 0.5 || sellPrice.price > 5.0) {
       risks.push('Price volatility');
     }
 
@@ -434,7 +430,8 @@ export class ArbitrageOptimizer {
 
     // Data freshness risk
     const age = Date.now() - buyPrice.timestamp;
-    if (age > 30000) { // Older than 30 seconds
+    if (age > 30000) {
+      // Older than 30 seconds
       risks.push('Stale data');
     }
 
@@ -448,11 +445,11 @@ export class ArbitrageOptimizer {
     let confidence = 1.0;
 
     // Reduce confidence based on quality difference
-    confidence *= (1 - Math.abs(buyPrice.quality - sellPrice.quality) * 0.5);
+    confidence *= 1 - Math.abs(buyPrice.quality - sellPrice.quality) * 0.5;
 
     // Reduce confidence based on data age
     const age = Date.now() - Math.max(buyPrice.timestamp, sellPrice.timestamp);
-    confidence *= Math.max(0.5, 1 - (age / 60000)); // Decay over 1 minute
+    confidence *= Math.max(0.5, 1 - age / 60000); // Decay over 1 minute
 
     // Increase confidence for high volume
     const volume = Math.min(buyPrice.audience.size, sellPrice.audience.size);
@@ -498,7 +495,7 @@ export class ArbitrageOptimizer {
         actualSellPrice: sellOrder.actualPrice,
         profit: actualProfit,
         executionTime: Date.now() - startTime,
-        success: true
+        success: true,
       };
 
       opportunity.status = 'completed';
@@ -547,7 +544,7 @@ export class ArbitrageOptimizer {
     return {
       orderId: `buy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       volume: Math.floor(volume * 0.8), // Fill 80% of order
-      actualPrice
+      actualPrice,
     };
   }
 
@@ -575,7 +572,7 @@ export class ArbitrageOptimizer {
 
     return {
       orderId: `sell_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      actualPrice
+      actualPrice,
     };
   }
 
@@ -622,7 +619,7 @@ export class ArbitrageOptimizer {
       failedExecutions,
       totalProfit,
       averageMargin,
-      successRate
+      successRate,
     };
   }
 
@@ -630,8 +627,9 @@ export class ArbitrageOptimizer {
    * Get active opportunities
    */
   getActiveOpportunities(): ArbitrageOpportunity[] {
-    return Array.from(this.activeOpportunities.values())
-      .sort((a, b) => b.profitPercentage - a.profitPercentage); // Sort by profit
+    return Array.from(this.activeOpportunities.values()).sort(
+      (a, b) => b.profitPercentage - a.profitPercentage
+    ); // Sort by profit
   }
 
   /**
@@ -642,6 +640,6 @@ export class ArbitrageOptimizer {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

@@ -43,8 +43,8 @@ export class InventoryManager {
         data: {
           ...data,
           availableSlots: data.totalSlots,
-          status: InventoryStatus.ACTIVE
-        }
+          status: InventoryStatus.ACTIVE,
+        },
       });
 
       logger.info('Inventory created', { inventoryId: inventory.id, type: data.type });
@@ -70,12 +70,12 @@ export class InventoryManager {
       const slotTime = new Date(start.getTime() + i * 24 * 60 * 60 * 1000); // Daily slots
       slots.push({
         inventoryId,
-        slotTime
+        slotTime,
       });
     }
 
     await prisma.inventorySlot.createMany({
-      data: slots
+      data: slots,
     });
 
     logger.info('Inventory slots generated', { inventoryId, count });
@@ -87,7 +87,7 @@ export class InventoryManager {
   async reserveSlot(slotId: string, campaignId: string, price: number) {
     try {
       const slot = await prisma.inventorySlot.findUnique({
-        where: { id: slotId }
+        where: { id: slotId },
       });
 
       if (!slot || slot.status !== 'AVAILABLE') {
@@ -99,15 +99,15 @@ export class InventoryManager {
         data: {
           status: 'RESERVED',
           reservedBy: campaignId,
-          price
-        }
+          price,
+        },
       });
 
       await prisma.inventory.update({
         where: { id: slot.inventoryId },
         data: {
-          availableSlots: { decrement: 1 }
-        }
+          availableSlots: { decrement: 1 },
+        },
       });
 
       logger.info('Slot reserved', { slotId, campaignId });
@@ -120,15 +120,18 @@ export class InventoryManager {
   /**
    * Get available inventory by type
    */
-  async getAvailableInventory(type: InventoryType, filters?: {
-    minSlots?: number;
-    maxPrice?: number;
-    publisherId?: string;
-  }) {
+  async getAvailableInventory(
+    type: InventoryType,
+    filters?: {
+      minSlots?: number;
+      maxPrice?: number;
+      publisherId?: string;
+    }
+  ) {
     const where: any = {
       type,
       status: InventoryStatus.ACTIVE,
-      availableSlots: filters?.minSlots ? { gte: filters.minSlots } : { gt: 0 }
+      availableSlots: filters?.minSlots ? { gte: filters.minSlots } : { gt: 0 },
     };
 
     if (filters?.maxPrice) {
@@ -145,9 +148,9 @@ export class InventoryManager {
         publisher: true,
         slots: {
           where: { status: 'AVAILABLE' },
-          take: 10
-        }
-      }
+          take: 10,
+        },
+      },
     });
   }
 
@@ -160,15 +163,15 @@ export class InventoryManager {
         inventoryId,
         slotTime: {
           gte: startDate,
-          lte: endDate
-        }
-      }
+          lte: endDate,
+        },
+      },
     });
 
     const total = slots.length;
-    const available = slots.filter(s => s.status === 'AVAILABLE').length;
-    const reserved = slots.filter(s => s.status === 'RESERVED').length;
-    const sold = slots.filter(s => s.status === 'SOLD').length;
+    const available = slots.filter((s: any) => s.status === 'AVAILABLE').length;
+    const reserved = slots.filter((s: any) => s.status === 'RESERVED').length;
+    const sold = slots.filter((s: any) => s.status === 'SOLD').length;
 
     return {
       total,
@@ -176,7 +179,7 @@ export class InventoryManager {
       reserved,
       sold,
       availabilityRate: total > 0 ? (available / total) * 100 : 0,
-      forecast: this.calculateForecast(slots)
+      forecast: this.calculateForecast(slots),
     };
   }
 
@@ -185,16 +188,14 @@ export class InventoryManager {
    */
   private calculateForecast(slots: any[]) {
     // Simple forecast based on recent booking trends
-    const recentBookings = slots
-      .filter(s => s.status === 'SOLD')
-      .slice(-7); // Last 7 days
+    const recentBookings = slots.filter((s) => s.status === 'SOLD').slice(-7); // Last 7 days
 
     const bookingRate = recentBookings.length / 7;
 
     return {
       estimatedDailyBookings: bookingRate,
       estimatedWeeklyBookings: bookingRate * 7,
-      estimatedMonthlyBookings: bookingRate * 30
+      estimatedMonthlyBookings: bookingRate * 30,
     };
   }
 
@@ -208,12 +209,12 @@ export class InventoryManager {
         slots: {
           where: {
             status: 'SOLD',
-            price: { not: null }
+            price: { not: null },
           },
           orderBy: { slotTime: 'desc' },
-          take: 30 // Last 30 sold slots
-        }
-      }
+          take: 30, // Last 30 sold slots
+        },
+      },
     });
 
     if (!inventory || inventory.slots.length === 0) {
@@ -221,10 +222,13 @@ export class InventoryManager {
     }
 
     // Calculate average sold price
-    const avgPrice = inventory.slots.reduce((sum, slot) => sum + (slot.price || 0), 0) / inventory.slots.length;
+    const avgPrice =
+      inventory.slots.reduce((sum: number, slot: any) => sum + (slot.price || 0), 0) /
+      inventory.slots.length;
 
     // Calculate utilization rate
-    const utilizationRate = (inventory.totalSlots - inventory.availableSlots) / inventory.totalSlots;
+    const utilizationRate =
+      (inventory.totalSlots - inventory.availableSlots) / inventory.totalSlots;
 
     // Price optimization logic
     let recommendedPrice = avgPrice;
@@ -241,14 +245,14 @@ export class InventoryManager {
       inventoryId,
       currentFloorPrice: inventory.floorPrice,
       recommendedFloorPrice: recommendedPrice,
-      utilizationRate
+      utilizationRate,
     });
 
     return {
       currentFloorPrice: inventory.floorPrice,
       recommendedFloorPrice: Math.round(recommendedPrice * 100) / 100,
       avgSoldPrice: Math.round(avgPrice * 100) / 100,
-      utilizationRate: Math.round(utilizationRate * 100)
+      utilizationRate: Math.round(utilizationRate * 100),
     };
   }
 
@@ -259,27 +263,30 @@ export class InventoryManager {
     const [inventory, slots, impressions] = await Promise.all([
       prisma.inventory.findUnique({
         where: { id: inventoryId },
-        include: { publisher: true }
+        include: { publisher: true },
       }),
       prisma.inventorySlot.findMany({
         where: {
           inventoryId,
-          slotTime: { gte: startDate, lte: endDate }
-        }
+          slotTime: { gte: startDate, lte: endDate },
+        },
       }),
       prisma.impression.findMany({
         where: {
           slot: {
             inventoryId,
-            slotTime: { gte: startDate, lte: endDate }
-          }
-        }
-      })
+            slotTime: { gte: startDate, lte: endDate },
+          },
+        },
+      }),
     ]);
 
-    const totalRevenue = impressions.reduce((sum, imp) => sum + (imp.revenue || 0), 0);
+    const totalRevenue = impressions.reduce(
+      (sum: number, imp: { revenue: number | null }) => sum + (imp.revenue || 0),
+      0
+    );
     const totalImpressions = impressions.length;
-    const totalClicks = impressions.filter(imp => imp.clicked).length;
+    const totalClicks = impressions.filter((imp: { clicked: boolean }) => imp.clicked).length;
     const avgCPM = totalImpressions > 0 ? (totalRevenue / totalImpressions) * 1000 : 0;
     const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
 
@@ -288,15 +295,19 @@ export class InventoryManager {
       period: { startDate, endDate },
       metrics: {
         totalSlots: slots.length,
-        soldSlots: slots.filter(s => s.status === 'SOLD').length,
-        availableSlots: slots.filter(s => s.status === 'AVAILABLE').length,
+        soldSlots: slots.filter((s: { status: string }) => s.status === 'SOLD').length,
+        availableSlots: slots.filter((s: { status: string }) => s.status === 'AVAILABLE').length,
         totalRevenue: Math.round(totalRevenue * 100) / 100,
         totalImpressions,
         totalClicks,
         avgCPM: Math.round(avgCPM * 100) / 100,
         ctr: Math.round(ctr * 100) / 100,
-        fillRate: slots.length > 0 ? (slots.filter(s => s.status === 'SOLD').length / slots.length) * 100 : 0
-      }
+        fillRate:
+          slots.length > 0
+            ? (slots.filter((s: { status: string }) => s.status === 'SOLD').length / slots.length) *
+              100
+            : 0,
+      },
     };
   }
 }

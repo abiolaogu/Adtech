@@ -1,6 +1,6 @@
 import { LRUCache } from 'lru-cache';
-import { getRedisClient } from '../../../config/redis';
-import { logger } from '../../../utils/logger';
+import { getRedisClient } from '../../config/redis';
+import { logger } from '../../utils/logger';
 
 /**
  * Multi-Layer Caching System
@@ -23,7 +23,7 @@ export class MultiLayerCache {
     l1Misses: 0,
     l2Hits: 0,
     l2Misses: 0,
-    sets: 0
+    sets: 0,
   };
 
   private constructor() {
@@ -36,7 +36,7 @@ export class MultiLayerCache {
       },
       ttl: 1000 * 60 * 5, // 5 minutes
       updateAgeOnGet: true,
-      updateAgeOnHas: false
+      updateAgeOnHas: false,
     });
 
     logger.info('Multi-layer cache initialized');
@@ -220,10 +220,7 @@ export class MultiLayerCache {
         );
         break;
       case 'inventory':
-        related.push(
-          `inventory:${entityId}:availability`,
-          `inventory:${entityId}:pricing`
-        );
+        related.push(`inventory:${entityId}:availability`, `inventory:${entityId}:pricing`);
         break;
     }
 
@@ -277,17 +274,17 @@ export class MultiLayerCache {
         size: l1Size,
         hits: this.stats.l1Hits,
         misses: this.stats.l1Misses,
-        hitRate: (l1HitRate * 100).toFixed(2) + '%'
+        hitRate: (l1HitRate * 100).toFixed(2) + '%',
       },
       l2: {
         hits: this.stats.l2Hits,
         misses: this.stats.l2Misses,
-        hitRate: (l2HitRate * 100).toFixed(2) + '%'
+        hitRate: (l2HitRate * 100).toFixed(2) + '%',
       },
       overall: {
         sets: this.stats.sets,
-        hitRate: (overallHitRate * 100).toFixed(2) + '%'
-      }
+        hitRate: (overallHitRate * 100).toFixed(2) + '%',
+      },
     };
   }
 
@@ -300,7 +297,7 @@ export class MultiLayerCache {
       l1Misses: 0,
       l2Hits: 0,
       l2Misses: 0,
-      sets: 0
+      sets: 0,
     };
   }
 

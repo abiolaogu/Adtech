@@ -25,6 +25,10 @@ model User {
   campaigns     Campaign[]
   audiences     Audience[]
   apiKeys       ApiKey[]
+
+  @@index([organizationId])
+  @@index([role])
+  @@index([createdAt])
 }
 
 model Organization {
@@ -48,6 +52,10 @@ model ApiKey {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   expiresAt DateTime?
+
+  @@index([userId])
+  @@index([active])
+  @@index([expiresAt])
 }
 
 enum UserRole {
@@ -93,6 +101,12 @@ model Inventory {
 
   slots         InventorySlot[]
   campaigns     CampaignInventory[]
+
+  @@index([publisherId])
+  @@index([type])
+  @@index([status])
+  @@index([floorPrice])
+  @@index([createdAt])
 }
 
 model InventorySlot {
@@ -107,6 +121,11 @@ model InventorySlot {
   updatedAt   DateTime @updatedAt
 
   impressions Impression[]
+
+  @@index([inventoryId])
+  @@index([status])
+  @@index([slotTime])
+  @@index([reservedBy])
 }
 
 enum InventoryType {
@@ -212,6 +231,15 @@ model Campaign {
   inventories   CampaignInventory[]
   bids          Bid[]
   audiences     CampaignAudience[]
+
+  @@index([advertiserId])
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([createdAt])
+  @@index([status, startDate, endDate]) // Composite index for active campaigns query
 }
 
 model Creative {
@@ -330,6 +358,12 @@ model Bid {
   timestamp   DateTime @default(now())
 
   impression  Impression?
+
+  @@index([campaignId])
+  @@index([placementId])
+  @@index([won])
+  @@index([timestamp])
+  @@index([requestId])
 }
 
 model AdPlacement {
@@ -376,6 +410,13 @@ model Impression {
   createdAt       DateTime @default(now())
 
   events          ImpressionEvent[]
+
+  @@index([placementId])
+  @@index([slotId])
+  @@index([served])
+  @@index([clicked])
+  @@index([converted])
+  @@index([createdAt])
 }
 
 model ImpressionEvent {
@@ -425,6 +466,12 @@ model Customer {
   events        CustomerEvent[]
   segments      CustomerSegment[]
   journeys      CustomerJourney[]
+
+  @@index([phone])
+  @@index([externalId])
+  @@index([country])
+  @@index([lastSeen])
+  @@index([createdAt])
 }
 
 model CustomerEvent {
@@ -561,10 +608,34 @@ model Report {
   updatedAt   DateTime @updatedAt
 }
 
+
 enum ReportType {
   CAMPAIGN_PERFORMANCE
   INVENTORY_UTILIZATION
   REVENUE
   AUDIENCE_INSIGHTS
   CUSTOM
+}
+
+// ===== EXTERNAL PARTNERS (DSP/SSP) =====
+
+model Partner {
+  id            String   @id @default(uuid())
+  name          String
+  type          PartnerType
+  endpoint      String
+  apiKey        String?
+  
+  // Simulation Config
+  latencyMs     Int      @default(50)
+  winRate       Float    @default(0.5) // 0.0 to 1.0
+  
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum PartnerType {
+  DSP
+  SSP
 }

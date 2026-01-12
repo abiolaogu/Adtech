@@ -181,7 +181,7 @@ export class DataManagementPlatform {
       type: 'demographic',
       apiEndpoint: 'https://api.experian.com/data/v1',
       apiKey: process.env.EXPERIAN_API_KEY || '',
-      costPerLookup: 0.05
+      costPerLookup: 0.05,
     });
 
     this.thirdPartyProviders.set('oracle_data_cloud', {
@@ -190,7 +190,7 @@ export class DataManagementPlatform {
       type: 'behavioral',
       apiEndpoint: 'https://api.datalogix.com/v1',
       apiKey: process.env.ORACLE_DATA_KEY || '',
-      costPerLookup: 0.08
+      costPerLookup: 0.08,
     });
 
     this.thirdPartyProviders.set('liveramp', {
@@ -199,7 +199,7 @@ export class DataManagementPlatform {
       type: 'demographic',
       apiEndpoint: 'https://api.liveramp.com/identity/v1',
       apiKey: process.env.LIVERAMP_API_KEY || '',
-      costPerLookup: 0.03
+      costPerLookup: 0.03,
     });
 
     this.thirdPartyProviders.set('lotame', {
@@ -208,7 +208,7 @@ export class DataManagementPlatform {
       type: 'behavioral',
       apiEndpoint: 'https://api.lotame.com/v3',
       apiKey: process.env.LOTAME_API_KEY || '',
-      costPerLookup: 0.04
+      costPerLookup: 0.04,
     });
 
     this.thirdPartyProviders.set('foursquare', {
@@ -217,7 +217,7 @@ export class DataManagementPlatform {
       type: 'location',
       apiEndpoint: 'https://api.foursquare.com/v2',
       apiKey: process.env.FOURSQUARE_API_KEY || '',
-      costPerLookup: 0.02
+      costPerLookup: 0.02,
     });
 
     console.log(`✓ Initialized ${this.thirdPartyProviders.size} 3rd party data providers`);
@@ -241,7 +241,7 @@ export class DataManagementPlatform {
           confidence: 0.95,
           method: 'deterministic',
           matchedOn: deterministicMatch.matchedOn,
-          unifiedId: deterministicMatch.unifiedId
+          unifiedId: deterministicMatch.unifiedId,
         };
       }
 
@@ -258,8 +258,10 @@ export class DataManagementPlatform {
       return {
         confidence: 1.0,
         method: 'deterministic',
-        matchedOn: Object.keys(identifiers).filter(k => identifiers[k as keyof typeof identifiers]),
-        unifiedId: newUnifiedId
+        matchedOn: Object.keys(identifiers).filter(
+          (k) => identifiers[k as keyof typeof identifiers]
+        ),
+        unifiedId: newUnifiedId,
       };
     } catch (error) {
       console.error('Identity resolution error:', error);
@@ -334,7 +336,7 @@ export class DataManagementPlatform {
           confidence: 0.75,
           method: 'probabilistic',
           matchedOn: ['cookieId'],
-          unifiedId: cookieMatch
+          unifiedId: cookieMatch,
         };
       }
     }
@@ -343,10 +345,10 @@ export class DataManagementPlatform {
       const deviceMatch = await this.redis.get(`identity:device:${identifiers.deviceId}`);
       if (deviceMatch) {
         return {
-          confidence: 0.80,
+          confidence: 0.8,
           method: 'probabilistic',
           matchedOn: ['deviceId'],
-          unifiedId: deviceMatch
+          unifiedId: deviceMatch,
         };
       }
     }
@@ -368,7 +370,7 @@ export class DataManagementPlatform {
         emails: identifiers.email ? [identifiers.email] : [],
         phoneNumbers: identifiers.phoneNumber ? [identifiers.phoneNumber] : [],
         crmIds: identifiers.crmId ? [identifiers.crmId] : [],
-        customIds: {}
+        customIds: {},
       },
       behavior: {
         pageViews: 0,
@@ -381,7 +383,7 @@ export class DataManagementPlatform {
         visitFrequency: 'new',
         devices: new Set(),
         browsers: new Set(),
-        referralSources: []
+        referralSources: [],
       },
       purchases: {
         totalOrders: 0,
@@ -389,28 +391,28 @@ export class DataManagementPlatform {
         averageOrderValue: 0,
         categories: [],
         products: [],
-        lifetimeValue: 0
+        lifetimeValue: 0,
       },
       interests: {
         categories: [],
         brands: [],
         keywords: [],
-        intentSignals: []
+        intentSignals: [],
       },
       segments: [],
       predictions: {
         conversionProbability: 0.01,
         churnRisk: 0.5,
         lifetimeValueEstimate: 0,
-        propensityScores: {}
+        propensityScores: {},
       },
       privacy: {
         gdprConsent: false,
         ccpaOptOut: false,
         cookieConsent: true,
         emailOptIn: false,
-        dataProcessingConsent: false
-      }
+        dataProcessingConsent: false,
+      },
     };
 
     // Store profile
@@ -444,11 +446,21 @@ export class DataManagementPlatform {
     if (!primary || !secondary) return;
 
     // Merge identities
-    primary.identities.cookies = [...new Set([...primary.identities.cookies, ...secondary.identities.cookies])];
-    primary.identities.deviceIds = [...new Set([...primary.identities.deviceIds, ...secondary.identities.deviceIds])];
-    primary.identities.emails = [...new Set([...primary.identities.emails, ...secondary.identities.emails])];
-    primary.identities.phoneNumbers = [...new Set([...primary.identities.phoneNumbers, ...secondary.identities.phoneNumbers])];
-    primary.identities.crmIds = [...new Set([...primary.identities.crmIds, ...secondary.identities.crmIds])];
+    primary.identities.cookies = [
+      ...new Set([...primary.identities.cookies, ...secondary.identities.cookies]),
+    ];
+    primary.identities.deviceIds = [
+      ...new Set([...primary.identities.deviceIds, ...secondary.identities.deviceIds]),
+    ];
+    primary.identities.emails = [
+      ...new Set([...primary.identities.emails, ...secondary.identities.emails]),
+    ];
+    primary.identities.phoneNumbers = [
+      ...new Set([...primary.identities.phoneNumbers, ...secondary.identities.phoneNumbers]),
+    ];
+    primary.identities.crmIds = [
+      ...new Set([...primary.identities.crmIds, ...secondary.identities.crmIds]),
+    ];
 
     // Merge behavioral data
     primary.behavior.pageViews += secondary.behavior.pageViews;
@@ -497,9 +509,9 @@ export class DataManagementPlatform {
 
     // Enrich from each provider in parallel
     const enrichmentPromises = providers
-      .map(providerId => this.thirdPartyProviders.get(providerId))
+      .map((providerId) => this.thirdPartyProviders.get(providerId))
       .filter(Boolean)
-      .map(provider => this.fetchThirdPartyData(profile, provider!));
+      .map((provider) => this.fetchThirdPartyData(profile, provider!));
 
     const enrichedData = await Promise.allSettled(enrichmentPromises);
 
@@ -533,10 +545,10 @@ export class DataManagementPlatform {
         { identifiers },
         {
           headers: {
-            'Authorization': `Bearer ${provider.apiKey}`,
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${provider.apiKey}`,
+            'Content-Type': 'application/json',
           },
-          timeout: 2000 // 2 second timeout
+          timeout: 2000, // 2 second timeout
         }
       );
 
@@ -547,11 +559,14 @@ export class DataManagementPlatform {
     }
   }
 
-  private extractIdentifiersForProvider(profile: UserProfile, provider: ThirdPartyDataProvider): any {
+  private extractIdentifiersForProvider(
+    profile: UserProfile,
+    provider: ThirdPartyDataProvider
+  ): any {
     return {
       email: profile.identities.emails[0],
       phone: profile.identities.phoneNumbers[0],
-      deviceId: profile.identities.deviceIds[0]
+      deviceId: profile.identities.deviceIds[0],
     };
   }
 
@@ -560,14 +575,14 @@ export class DataManagementPlatform {
     if (data.demographics) {
       profile.demographics = {
         ...profile.demographics,
-        ...data.demographics
+        ...data.demographics,
       };
     }
 
     // Merge interests
     if (data.interests) {
       profile.interests.categories = [
-        ...new Set([...profile.interests.categories, ...(data.interests.categories || [])])
+        ...new Set([...profile.interests.categories, ...(data.interests.categories || [])]),
       ];
     }
 
@@ -580,14 +595,17 @@ export class DataManagementPlatform {
   /**
    * Track user event (1st party data collection)
    */
-  async trackEvent(unifiedId: string, event: {
-    type: 'pageview' | 'click' | 'purchase' | 'add_to_cart' | 'signup';
-    url?: string;
-    productId?: string;
-    category?: string;
-    value?: number;
-    metadata?: Record<string, any>;
-  }): Promise<void> {
+  async trackEvent(
+    unifiedId: string,
+    event: {
+      type: 'pageview' | 'click' | 'purchase' | 'add_to_cart' | 'signup';
+      url?: string;
+      productId?: string;
+      category?: string;
+      value?: number;
+      metadata?: Record<string, any>;
+    }
+  ): Promise<void> {
     const profile = await this.getUserProfile(unifiedId);
     if (!profile) return;
 
@@ -600,7 +618,8 @@ export class DataManagementPlatform {
     if (event.type === 'purchase' && event.value) {
       profile.purchases.totalOrders++;
       profile.purchases.totalRevenue += event.value;
-      profile.purchases.averageOrderValue = profile.purchases.totalRevenue / profile.purchases.totalOrders;
+      profile.purchases.averageOrderValue =
+        profile.purchases.totalRevenue / profile.purchases.totalOrders;
       profile.purchases.lifetimeValue += event.value;
       profile.purchases.lastPurchaseDate = new Date();
 
@@ -622,14 +641,16 @@ export class DataManagementPlatform {
   /**
    * Create audience segment
    */
-  async createSegment(segment: Omit<AudienceSegment, 'id' | 'userCount' | 'createdAt'>): Promise<AudienceSegment> {
+  async createSegment(
+    segment: Omit<AudienceSegment, 'id' | 'userCount' | 'createdAt'>
+  ): Promise<AudienceSegment> {
     const segmentId = `seg_${uuidv4()}`;
 
     const fullSegment: AudienceSegment = {
       ...segment,
       id: segmentId,
       userCount: 0,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     // Calculate user count
@@ -677,9 +698,7 @@ export class DataManagementPlatform {
     expansionFactor: number = 10
   ): Promise<string[]> {
     // Get seed user profiles
-    const seedProfiles = await Promise.all(
-      seedUserIds.map(id => this.getUserProfile(id))
-    );
+    const seedProfiles = await Promise.all(seedUserIds.map((id) => this.getUserProfile(id)));
 
     const validProfiles = seedProfiles.filter(Boolean) as UserProfile[];
 
@@ -702,16 +721,17 @@ export class DataManagementPlatform {
   private calculateAudienceCharacteristics(profiles: UserProfile[]): any {
     return {
       avgAge: profiles.reduce((sum, p) => sum + (p.demographics?.age || 0), 0) / profiles.length,
-      commonInterests: this.findCommonElements(profiles.map(p => p.interests.categories)),
-      avgLifetimeValue: profiles.reduce((sum, p) => sum + p.purchases.lifetimeValue, 0) / profiles.length
+      commonInterests: this.findCommonElements(profiles.map((p) => p.interests.categories)),
+      avgLifetimeValue:
+        profiles.reduce((sum, p) => sum + p.purchases.lifetimeValue, 0) / profiles.length,
     };
   }
 
   private findCommonElements(arrays: string[][]): string[] {
     const frequency: Record<string, number> = {};
 
-    arrays.forEach(arr => {
-      arr.forEach(item => {
+    arrays.forEach((arr) => {
+      arr.forEach((item) => {
         frequency[item] = (frequency[item] || 0) + 1;
       });
     });
@@ -726,29 +746,33 @@ export class DataManagementPlatform {
   /**
    * Get cheapest inventory for targeting a specific user
    */
-  async getCheapestInventoryForUser(unifiedId: string): Promise<{
-    exchange: string;
-    estimatedCPM: number;
-    segments: string[];
-  }[]> {
+  async getCheapestInventoryForUser(unifiedId: string): Promise<
+    {
+      exchange: string;
+      estimatedCPM: number;
+      segments: string[];
+    }[]
+  > {
     const profile = await this.getUserProfile(unifiedId);
     if (!profile) return [];
 
     // Check which exchanges have this user's data
     const availableExchanges = [
-      { exchange: 'openx', cpm: 0.80 },
+      { exchange: 'openx', cpm: 0.8 },
       { exchange: 'pubmatic', cpm: 0.95 },
-      { exchange: 'rubicon', cpm: 1.20 },
-      { exchange: 'google_adx', cpm: 2.50 },
-      { exchange: 'appnexus', cpm: 2.20 }
+      { exchange: 'rubicon', cpm: 1.2 },
+      { exchange: 'google_adx', cpm: 2.5 },
+      { exchange: 'appnexus', cpm: 2.2 },
     ];
 
     // Sort by cheapest CPM
+    // Sort by cheapest CPM and map to result format
     return availableExchanges
       .sort((a, b) => a.cpm - b.cpm)
-      .map(ex => ({
-        ...ex,
-        segments: profile.segments
+      .map((ex) => ({
+        exchange: ex.exchange,
+        estimatedCPM: ex.cpm,
+        segments: profile.segments,
       }));
   }
 }

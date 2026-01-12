@@ -70,8 +70,7 @@ export const martechAPI = {
 
 export const analyticsAPI = {
   overview: () => api.get('/analytics/overview'),
-  campaignPerformance: (id: string, params: any) =>
-    api.get(`/analytics/campaigns/${id}/performance`, { params }),
-  publisherRevenue: (id: string, params: any) =>
-    api.get(`/analytics/publishers/${id}/revenue`, { params })
+  getDashboardStats: () => api.get('/analytics/dashboard'),
+  campaignPerformance: (id: string, params: any) => api.get(`/analytics/campaign/${id}`, { params }),
+  publisherRevenue: (id: string, params: any) => api.get(`/analytics/publisher/${id}`, { params })
 };

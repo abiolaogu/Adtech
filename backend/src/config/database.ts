@@ -13,7 +13,7 @@ const prisma = new PrismaClient({
 if (process.env.NODE_ENV === 'development') {
   prisma.$on(
     'query' as never,
-    ((e: { query: string; duration: number }) => {
+    ((e: any) => {
       if (e.duration > 1000) {
         logger.warn('Slow query detected', {
           query: e.query,
