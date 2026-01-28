@@ -43,7 +43,8 @@ jobs:
           python scripts/agents/repo_improver.py
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # CHANGE THIS LINE from GITHUB_TOKEN to FACTORY_ADMIN_TOKEN
+          GITHUB_TOKEN: ${{ secrets.FACTORY_ADMIN_TOKEN }} 
           GITHUB_REPOSITORY: ${{ github.repository }}
       
       - name: Commit generated documentation

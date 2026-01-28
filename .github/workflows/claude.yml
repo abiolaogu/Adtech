@@ -1,14 +1,14 @@
 name: Universal Factory Worker
 on:
   issues:
-    types: [opened, assigned]
+    types: [opened, edited, assigned] # Added 'edited' just in case
   issue_comment:
     types: [created]
 
 jobs:
   build:
-    # 1. LOGIC: Wake up for New Issues OR New Comments containing '@claude'
-    if: >
+    # 1. UPDATED LOGIC: Checks for @claude anywhere in the body
+    if: |
       (github.event_name == 'issues' && contains(github.event.issue.body, '@claude')) ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
     
