@@ -56,3 +56,14 @@ jobs:
           git diff --staged --quiet || git commit -m "docs: generate missing documentation (Factory Improvement System)"
           git push
         continue-on-error: true
+
+        - name: Send Slack Notification
+        if: always() # Runs even if the assessment fails
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "🏭 *Factory Update: Adtech Repository*\n*Status:* ${{ job.status }}\n*Details:* Assessment and Improvement run completed.\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow Logs>"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
