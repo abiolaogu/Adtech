@@ -310,4 +310,73 @@ export class InventoryManager {
       },
     };
   }
+
+  /**
+   * Get inventory by ID
+   */
+  async getInventoryById(inventoryId: string) {
+    try {
+      const inventory = await prisma.inventory.findUnique({
+        where: { id: inventoryId },
+        include: {
+          publisher: true,
+          slots: {
+            take: 10,
+            orderBy: { slotTime: 'asc' },
+          },
+        },
+      });
+
+      return inventory;
+    } catch (error) {
+      logger.error('Failed to get inventory', { inventoryId, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Update inventory
+   */
+  async updateInventory(inventoryId: string, data: any) {
+    try {
+      const inventory = await prisma.inventory.update({
+        where: { id: inventoryId },
+        data: {
+          ...data,
+          updatedAt: new Date(),
+        },
+        include: {
+          publisher: true,
+        },
+      });
+
+      logger.info('Inventory updated', { inventoryId });
+      return inventory;
+    } catch (error) {
+      logger.error('Failed to update inventory', { inventoryId, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete inventory
+   */
+  async deleteInventory(inventoryId: string) {
+    try {
+      // Delete all slots first
+      await prisma.inventorySlot.deleteMany({
+        where: { inventoryId },
+      });
+
+      // Then delete inventory
+      await prisma.inventory.delete({
+        where: { id: inventoryId },
+      });
+
+      logger.info('Inventory deleted', { inventoryId });
+    } catch (error) {
+      logger.error('Failed to delete inventory', { inventoryId, error });
+      throw error;
+    }
+  }
 }

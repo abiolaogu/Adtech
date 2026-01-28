@@ -1,5 +1,6 @@
 import { ProgrammaticBuyingEngine } from '../programmatic/ProgrammaticBuyingEngine';
 import { FraudDetectionEngine } from '../security/FraudDetectionEngine';
+import { BrandSafetyFilter } from '../security/BrandSafetyFilter';
 import { RedisService } from '../caching/RedisService';
 import { PartnerService } from '../adtech/rtb/PartnerService';
 import { prisma } from '../../config/database';
@@ -124,12 +125,14 @@ export class AdServer {
   private redisService: RedisService;
   private programmaticEngine: ProgrammaticBuyingEngine;
   private fraudDetection: FraudDetectionEngine;
+  private brandSafety: BrandSafetyFilter;
   private partnerService: PartnerService;
 
   private constructor() {
     this.redisService = RedisService.getInstance();
     this.programmaticEngine = new ProgrammaticBuyingEngine();
     this.fraudDetection = FraudDetectionEngine.getInstance();
+    this.brandSafety = BrandSafetyFilter.getInstance();
     this.partnerService = PartnerService.getInstance();
   }
 
@@ -570,6 +573,35 @@ export class AdServer {
       return campaign.creatives[0];
     }
     return null;
+  }
+
+  /**
+   * Check creative for brand safety
+   */
+  private async checkBrandSafety(creative: any): Promise<boolean> {
+    try {
+      const safetyCheck = await this.brandSafety.checkCreative({
+        type: creative.type || 'html',
+        content: creative.content || {},
+        clickUrl: creative.clickUrl,
+        htmlContent: creative.htmlContent,
+      });
+
+      if (!safetyCheck.safe) {
+        logger.warn('Creative failed brand safety check', {
+          creativeId: creative.id,
+          violations: safetyCheck.violations,
+          riskScore: safetyCheck.riskScore,
+        });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error('Brand safety check error', { error });
+      // Fail open - allow the ad if check fails
+      return true;
+    }
   }
 
   private delay(ms: number): Promise<void> {
