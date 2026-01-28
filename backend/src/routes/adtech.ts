@@ -391,6 +391,179 @@ router.put(
   }
 );
 
+/**
+ * Approve creative
+ * POST /api/v1/adtech/creatives/:id/approve
+ */
+router.post(
+  '/creatives/:id/approve',
+  authenticate,
+  authorize('ADMIN'),
+  validate(uuidParamSchema),
+  async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const creative = await prisma.creative.findUnique({
+        where: { id: req.params.id },
+      });
+
+      if (!creative) {
+        throw new AppError('Creative not found', 404);
+      }
+
+      if (creative.status !== 'PENDING') {
+        throw new AppError('Creative is not pending approval', 400);
+      }
+
+      const updatedCreative = await prisma.creative.update({
+        where: { id: req.params.id },
+        data: { status: 'APPROVED' },
+        include: { advertiser: true },
+      });
+
+      logger.info('Creative approved', {
+        creativeId: creative.id,
+        approvedBy: req.user?.userId,
+      });
+
+      res.json(updatedCreative);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * Reject creative
+ * POST /api/v1/adtech/creatives/:id/reject
+ */
+router.post(
+  '/creatives/:id/reject',
+  authenticate,
+  authorize('ADMIN'),
+  validate(uuidParamSchema),
+  async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const { reason } = req.body;
+
+      const creative = await prisma.creative.findUnique({
+        where: { id: req.params.id },
+      });
+
+      if (!creative) {
+        throw new AppError('Creative not found', 404);
+      }
+
+      if (creative.status !== 'PENDING') {
+        throw new AppError('Creative is not pending approval', 400);
+      }
+
+      const updatedCreative = await prisma.creative.update({
+        where: { id: req.params.id },
+        data: {
+          status: 'REJECTED',
+          content: {
+            ...(creative.content as object),
+            rejectionReason: reason || 'Content does not meet guidelines',
+          },
+        },
+        include: { advertiser: true },
+      });
+
+      logger.info('Creative rejected', {
+        creativeId: creative.id,
+        rejectedBy: req.user?.userId,
+        reason,
+      });
+
+      res.json(updatedCreative);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * Clone campaign
+ * POST /api/v1/adtech/campaigns/:id/clone
+ */
+router.post(
+  '/campaigns/:id/clone',
+  authenticate,
+  validate(campaignIdParamsSchema),
+  async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const original = await prisma.campaign.findUnique({
+        where: { id: req.params.id },
+        include: {
+          creatives: true,
+          inventories: true,
+          audiences: true,
+        },
+      });
+
+      if (!original) {
+        throw new AppError('Campaign not found', 404);
+      }
+
+      // Check ownership unless admin
+      if (req.user?.role !== 'ADMIN' && original.userId !== req.user?.userId) {
+        throw new AppError('Access denied', 403);
+      }
+
+      // Create cloned campaign
+      const cloned = await prisma.campaign.create({
+        data: {
+          name: `${original.name} (Copy)`,
+          advertiserId: original.advertiserId,
+          userId: req.user?.userId!,
+          type: original.type,
+          objective: original.objective,
+          budget: original.budget,
+          bidStrategy: original.bidStrategy,
+          maxBid: original.maxBid,
+          targeting: original.targeting,
+          startDate: new Date(),
+          endDate: original.endDate,
+          status: 'DRAFT',
+          creatives: {
+            create: original.creatives.map((cc) => ({
+              creativeId: cc.creativeId,
+              weight: cc.weight,
+              active: cc.active,
+            })),
+          },
+          inventories: {
+            create: original.inventories.map((ci) => ({
+              inventoryId: ci.inventoryId,
+            })),
+          },
+          audiences: {
+            create: original.audiences.map((ca) => ({
+              audienceId: ca.audienceId,
+            })),
+          },
+        },
+        include: {
+          advertiser: true,
+          creatives: {
+            include: { creative: true },
+          },
+        },
+      });
+
+      logger.info('Campaign cloned', {
+        originalId: original.id,
+        clonedId: cloned.id,
+        userId: req.user?.userId,
+      });
+
+      res.status(201).json(cloned);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // ===== PUBLISHER MANAGEMENT (Admin/Publisher only) =====
 
 /**
