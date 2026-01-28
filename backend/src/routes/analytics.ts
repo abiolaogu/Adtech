@@ -381,4 +381,130 @@ router.get(
   }
 );
 
+/**
+ * Export analytics data
+ * GET /api/v1/analytics/export
+ * Supports CSV and JSON formats
+ */
+router.get(
+  '/export',
+  authenticate,
+  async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const { format = 'csv', startDate, endDate, type = 'campaign' } = req.query;
+
+      // Validate format
+      if (format !== 'csv' && format !== 'json') {
+        throw new AppError('Invalid format. Supported formats: csv, json', 400);
+      }
+
+      // Date range
+      const start = startDate ? new Date(startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const end = endDate ? new Date(endDate as string) : new Date();
+
+      let data: any[] = [];
+
+      if (type === 'campaign') {
+        // Export campaign data
+        const campaigns = await prisma.campaign.findMany({
+          where: {
+            ...(req.user?.role !== 'ADMIN' ? { userId: req.user?.userId } : {}),
+            createdAt: { gte: start, lte: end },
+          },
+          include: {
+            advertiser: { select: { name: true } },
+          },
+        });
+
+        data = campaigns.map((c) => ({
+          id: c.id,
+          name: c.name,
+          advertiser: c.advertiser.name,
+          type: c.type,
+          status: c.status,
+          budget: c.budget,
+          spent: c.spent,
+          impressions: c.impressions,
+          clicks: c.clicks,
+          conversions: c.conversions,
+          ctr: c.impressions > 0 ? ((c.clicks / c.impressions) * 100).toFixed(2) : 0,
+          cvr: c.clicks > 0 ? ((c.conversions / c.clicks) * 100).toFixed(2) : 0,
+          startDate: c.startDate.toISOString(),
+          endDate: c.endDate?.toISOString() || '',
+          createdAt: c.createdAt.toISOString(),
+        }));
+      } else if (type === 'impression') {
+        // Export impression data
+        const impressions = await prisma.impression.findMany({
+          where: {
+            createdAt: { gte: start, lte: end },
+          },
+          take: 10000, // Limit for performance
+          include: {
+            bid: {
+              include: {
+                campaign: { select: { name: true } },
+              },
+            },
+            placement: { select: { name: true, publisher: { select: { name: true } } } },
+          },
+        });
+
+        data = impressions.map((i) => ({
+          id: i.id,
+          campaign: i.bid.campaign.name,
+          publisher: i.placement.publisher.name,
+          placement: i.placement.name,
+          served: i.served,
+          viewed: i.viewed,
+          clicked: i.clicked,
+          converted: i.converted,
+          revenue: i.revenue || 0,
+          publisherRevenue: i.publisherRevenue || 0,
+          servedAt: i.servedAt?.toISOString() || '',
+          clickedAt: i.clickedAt?.toISOString() || '',
+          convertedAt: i.convertedAt?.toISOString() || '',
+        }));
+      }
+
+      if (format === 'json') {
+        res.json({ data, exportedAt: new Date().toISOString(), count: data.length });
+      } else {
+        // CSV format
+        if (data.length === 0) {
+          throw new AppError('No data to export', 404);
+        }
+
+        const headers = Object.keys(data[0]);
+        const csvRows = [
+          headers.join(','),
+          ...data.map((row) =>
+            headers.map((header) => {
+              const value = row[header];
+              // Escape commas and quotes
+              const escaped = String(value).replace(/"/g, '""');
+              return `"${escaped}"`;
+            }).join(',')
+          ),
+        ];
+
+        const csv = csvRows.join('\n');
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="analytics-${type}-${Date.now()}.csv"`);
+        res.send(csv);
+      }
+
+      logger.info('Analytics exported', {
+        userId: req.user?.userId,
+        format,
+        type,
+        count: data.length,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 export default router;
