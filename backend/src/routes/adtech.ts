@@ -610,6 +610,132 @@ router.post(
   }
 );
 
+/**
+ * Bulk campaign operations
+ * POST /api/v1/adtech/campaigns/bulk
+ * Supports bulk update and delete operations
+ */
+router.post(
+  '/campaigns/bulk',
+  authenticate,
+  authorize('ADMIN', 'ADVERTISER', 'USER'),
+  async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const { operation, campaignIds, updates } = req.body;
+
+      if (!operation || !campaignIds || !Array.isArray(campaignIds) || campaignIds.length === 0) {
+        throw new AppError('Invalid bulk operation request', 400);
+      }
+
+      if (!['update', 'delete', 'pause', 'activate'].includes(operation)) {
+        throw new AppError('Invalid operation. Supported: update, delete, pause, activate', 400);
+      }
+
+      // Validate campaign IDs are UUIDs
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      for (const id of campaignIds) {
+        if (!uuidRegex.test(id)) {
+          throw new AppError(`Invalid campaign ID format: ${id}`, 400);
+        }
+      }
+
+      // Verify ownership for all campaigns
+      const campaigns = await prisma.campaign.findMany({
+        where: { id: { in: campaignIds } },
+        select: { id: true, userId: true, name: true },
+      });
+
+      if (campaigns.length !== campaignIds.length) {
+        throw new AppError('One or more campaigns not found', 404);
+      }
+
+      // Check permissions
+      const unauthorizedCampaigns = campaigns.filter(
+        (c) => req.user?.role !== 'ADMIN' && c.userId !== req.user?.userId
+      );
+
+      if (unauthorizedCampaigns.length > 0) {
+        throw new AppError(
+          `Access denied to campaigns: ${unauthorizedCampaigns.map((c) => c.name).join(', ')}`,
+          403
+        );
+      }
+
+      let result;
+
+      switch (operation) {
+        case 'update':
+          if (!updates || typeof updates !== 'object') {
+            throw new AppError('Updates object is required for update operation', 400);
+          }
+
+          result = await prisma.campaign.updateMany({
+            where: { id: { in: campaignIds } },
+            data: updates,
+          });
+
+          logger.info('Bulk campaign update', {
+            campaignIds,
+            updates,
+            count: result.count,
+            userId: req.user?.userId,
+          });
+          break;
+
+        case 'delete':
+          result = await prisma.campaign.deleteMany({
+            where: { id: { in: campaignIds } },
+          });
+
+          logger.info('Bulk campaign delete', {
+            campaignIds,
+            count: result.count,
+            userId: req.user?.userId,
+          });
+          break;
+
+        case 'pause':
+          result = await prisma.campaign.updateMany({
+            where: { id: { in: campaignIds } },
+            data: { status: 'PAUSED' },
+          });
+
+          logger.info('Bulk campaign pause', {
+            campaignIds,
+            count: result.count,
+            userId: req.user?.userId,
+          });
+          break;
+
+        case 'activate':
+          result = await prisma.campaign.updateMany({
+            where: { id: { in: campaignIds } },
+            data: { status: 'ACTIVE' },
+          });
+
+          logger.info('Bulk campaign activate', {
+            campaignIds,
+            count: result.count,
+            userId: req.user?.userId,
+          });
+          break;
+
+        default:
+          throw new AppError('Unsupported operation', 400);
+      }
+
+      res.json({
+        success: true,
+        operation,
+        affected: result.count,
+        campaignIds,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // ===== PUBLISHER MANAGEMENT (Admin/Publisher only) =====
 
 /**
