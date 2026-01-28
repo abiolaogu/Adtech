@@ -242,6 +242,29 @@ router.post('/refresh', authenticate, async (req: AuthenticatedRequest, res, nex
 });
 
 /**
+ * Logout
+ * POST /api/v1/auth/logout
+ * Note: With JWT, logout is primarily client-side (remove token from storage)
+ * This endpoint logs the logout event for audit purposes
+ */
+router.post('/logout', authenticate, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    if (!req.user) {
+      throw new AppError('User not authenticated', 401);
+    }
+
+    logger.info('User logged out', { userId: req.user.userId, email: req.user.email });
+
+    res.json({
+      message: 'Logged out successfully',
+      note: 'Please remove the JWT token from client storage',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * Change password
  * POST /api/v1/auth/change-password
  */

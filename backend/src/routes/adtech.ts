@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { AdServer } from '../services/adserver/AdServer';
+import { BrandSafetyFilter } from '../services/security/BrandSafetyFilter';
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import {
@@ -143,6 +144,51 @@ router.post(
     } catch (error) {
       logger.error('Conversion tracking error', { requestId: req.params.requestId, error });
       res.json({ success: false });
+    }
+  }
+);
+
+/**
+ * Track viewability
+ * POST /api/v1/adtech/track/viewability/:requestId
+ * Public endpoint - tracks when ad becomes viewable (50%+ visible for 1+ seconds)
+ */
+router.post(
+  '/track/viewability/:requestId',
+  adServingRateLimiter,
+  async (req, res, next) => {
+    try {
+      const { viewableTime, viewablePercentage } = req.body;
+      const requestId = req.params.requestId;
+
+      // Validate viewability metrics
+      const time = parseInt(viewableTime) || 0;
+      const percentage = parseInt(viewablePercentage) || 0;
+
+      // MRC standard: 50% of pixels visible for at least 1 second (display) or 2 seconds (video)
+      const isViewable = percentage >= 50 && time >= 1000; // 1000ms = 1 second
+
+      // Record viewability event in the database
+      await prisma.adRequest.update({
+        where: { requestId },
+        data: {
+          viewable: isViewable,
+          viewabilityTime: time,
+          viewabilityPercentage: percentage,
+        },
+      });
+
+      logger.info('Viewability tracked', {
+        requestId,
+        viewableTime: time,
+        viewablePercentage: percentage,
+        isViewable,
+      });
+
+      res.json({ success: true, viewable: isViewable });
+    } catch (error) {
+      logger.error('Viewability tracking error', { requestId: req.params.requestId, error });
+      res.json({ success: false, viewable: false });
     }
   }
 );
@@ -630,6 +676,49 @@ router.post(
 
       logger.info('Placement created', { placementId: placement.id, userId: req.user?.userId });
       res.status(201).json(placement);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ===== BRAND SAFETY (Admin Only) =====
+
+/**
+ * Check content for brand safety
+ * POST /api/v1/adtech/brand-safety/check
+ * Admin only endpoint for manual brand safety checks
+ */
+router.post(
+  '/brand-safety/check',
+  authenticate,
+  authorize('ADMIN'),
+  async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const { url, title, description, keywords, html, domain } = req.body;
+
+      if (!url && !title && !description && !keywords && !html && !domain) {
+        throw new AppError('At least one content field is required', 400);
+      }
+
+      const brandSafety = BrandSafetyFilter.getInstance();
+      const result = await brandSafety.checkContent({
+        url,
+        title,
+        description,
+        keywords,
+        html,
+        domain,
+      });
+
+      logger.info('Brand safety check performed', {
+        userId: req.user?.userId,
+        safe: result.safe,
+        riskLevel: result.riskLevel,
+        url,
+      });
+
+      res.json(result);
     } catch (error) {
       next(error);
     }

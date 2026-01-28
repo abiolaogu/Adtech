@@ -1,5 +1,6 @@
 import { ProgrammaticBuyingEngine } from '../programmatic/ProgrammaticBuyingEngine';
 import { FraudDetectionEngine } from '../security/FraudDetectionEngine';
+import { BrandSafetyFilter } from '../security/BrandSafetyFilter';
 import { RedisService } from '../caching/RedisService';
 import { PartnerService } from '../adtech/rtb/PartnerService';
 import { prisma } from '../../config/database';
@@ -124,12 +125,14 @@ export class AdServer {
   private redisService: RedisService;
   private programmaticEngine: ProgrammaticBuyingEngine;
   private fraudDetection: FraudDetectionEngine;
+  private brandSafety: BrandSafetyFilter;
   private partnerService: PartnerService;
 
   private constructor() {
     this.redisService = RedisService.getInstance();
     this.programmaticEngine = new ProgrammaticBuyingEngine();
     this.fraudDetection = FraudDetectionEngine.getInstance();
+    this.brandSafety = BrandSafetyFilter.getInstance();
     this.partnerService = PartnerService.getInstance();
   }
 
@@ -161,6 +164,24 @@ export class AdServer {
 
       if (!fraudCheck.allowed) {
         throw new Error('Invalid traffic detected');
+      }
+
+      // 2b. Brand safety check for page URL
+      const brandSafetyCheck = await this.brandSafety.checkContent({
+        url: request.pageUrl,
+        domain: new URL(request.pageUrl).hostname,
+        keywords: request.keywords,
+      });
+
+      if (!brandSafetyCheck.safe) {
+        logger.warn('Brand safety check failed', {
+          requestId: request.requestId,
+          pageUrl: request.pageUrl,
+          riskLevel: brandSafetyCheck.riskLevel,
+          flaggedCategories: brandSafetyCheck.flaggedCategories,
+        });
+        // Still serve ads but log the issue - you can make this stricter by throwing an error
+        // throw new Error('Content failed brand safety check');
       }
 
       // 3. Try direct sales first (guaranteed campaigns)
