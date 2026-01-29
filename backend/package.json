@@ -55,7 +55,10 @@
     "turbospike": "git+https://github.com/abiolaogu/Turbospike.git",
     "uuid": "^9.0.1",
     "winston": "^3.11.0",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "speakeasy": "^2.0.0",
+    "qrcode": "^1.5.3",
+    "nodemailer": "^6.9.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -68,6 +71,9 @@
     "@types/supertest": "^6.0.2",
     "@types/uuid": "^9.0.7",
     "@types/supertest": "^6.0.2",
+    "@types/speakeasy": "^2.0.10",
+    "@types/qrcode": "^1.5.5",
+    "@types/nodemailer": "^6.4.14",
     "typescript": "^5.3.3",
     "tsx": "^4.7.0",
     "prisma": "^5.20.0",
