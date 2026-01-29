@@ -106,6 +106,19 @@ export const campaignIdParamsSchema = {
   }),
 };
 
+export const bulkCampaignSchema = {
+  body: z.object({
+    operation: z.enum(['update', 'delete', 'pause', 'activate']),
+    campaignIds: z.array(z.string().uuid('Invalid campaign ID')).min(1, 'At least one campaign ID is required').max(100, 'Maximum 100 campaigns per bulk operation'),
+    updates: z.object({
+      status: z.enum(['DRAFT', 'ACTIVE', 'PAUSED', 'COMPLETED', 'ARCHIVED']).optional(),
+      budget: z.number().positive().optional(),
+      maxBid: z.number().positive().optional(),
+      endDate: z.string().datetime().or(z.date()).optional(),
+    }).optional(),
+  }),
+};
+
 // ===== Inventory Schemas =====
 
 export const createInventorySchema = {
