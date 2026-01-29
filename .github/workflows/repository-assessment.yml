@@ -1,10 +1,20 @@
 name: Repository Assessment & Improvement
+
 on:
+  # 1. The Autonomous Schedule (Every 6 Hours)
+  schedule:
+    # UTC Times: 00:00, 06:00, 12:00, 18:00
+    # Note: GitHub Actions runs in UTC.
+    - cron: '0 0,6,12,18 * * *'
+    
+  # 2. Manual Trigger
+  workflow_dispatch:
+  
+  # 3. On Code Change (Optional - keep if you want instant feedback)
   push:
     branches:
       - main
       - master
-  workflow_dispatch:
 
 jobs:
   assess-and-improve:
