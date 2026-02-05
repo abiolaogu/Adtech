@@ -615,15 +615,66 @@ enum CustomerJourneyStatus {
 model Report {
   id          String   @id @default(uuid())
   name        String
+  description String?
+  userId      String
   type        ReportType
-  config      Json
-  schedule    String?
-  recipients  String[]
+
+  // Report Configuration
+  dataSource  ReportDataSource
+  metrics     String[]  // e.g., ["impressions", "clicks", "revenue", "ctr"]
+  dimensions  String[]  // e.g., ["date", "campaign", "publisher"]
+  filters     Json?     // Custom filter conditions
+  groupBy     String[]  // Grouping fields
+  sortBy      Json?     // Sorting configuration
+
+  // Date Range
+  dateRange   ReportDateRange
+  startDate   DateTime?
+  endDate     DateTime?
+
+  // Scheduling
+  schedule    String?   // Cron expression for scheduled reports
+  recipients  String[]  // Email recipients for scheduled reports
+  format      ReportFormat @default(JSON)
+
+  // Status
   active      Boolean  @default(true)
+  isTemplate  Boolean  @default(false)  // If true, can be used as template
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  lastRunAt   DateTime?
+
+  executions  ReportExecution[]
+
+  @@index([userId])
+  @@index([type])
+  @@index([dataSource])
+  @@index([active])
+  @@index([isTemplate])
 }
 
+model ReportExecution {
+  id          String   @id @default(uuid())
+  reportId    String
+  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  status      ExecutionStatus
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  duration    Int?     // Duration in milliseconds
+
+  // Results
+  rowCount    Int?
+  fileUrl     String?  // URL to generated file (CSV, etc.)
+  resultData  Json?    // For JSON results
+
+  error       String?  // Error message if failed
+
+  @@index([reportId])
+  @@index([status])
+  @@index([startedAt])
+}
 
 enum ReportType {
   CAMPAIGN_PERFORMANCE
@@ -631,6 +682,41 @@ enum ReportType {
   REVENUE
   AUDIENCE_INSIGHTS
   CUSTOM
+}
+
+enum ReportDataSource {
+  CAMPAIGNS
+  IMPRESSIONS
+  PUBLISHERS
+  ADVERTISERS
+  AUDIENCES
+  CUSTOMERS
+  INVENTORY
+}
+
+enum ReportDateRange {
+  CUSTOM
+  TODAY
+  YESTERDAY
+  LAST_7_DAYS
+  LAST_30_DAYS
+  THIS_MONTH
+  LAST_MONTH
+  THIS_YEAR
+  LAST_YEAR
+}
+
+enum ReportFormat {
+  JSON
+  CSV
+  PDF
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
 }
 
 // ===== EXTERNAL PARTNERS (DSP/SSP) =====
