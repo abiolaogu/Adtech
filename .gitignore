@@ -47,3 +47,7 @@ frontend/.vite/
 
 # Backend specific
 backend/dist/
+web/dist/
+*.tsbuildinfo
+.dart_tool/
+**/.dart_tool/
